@@ -19,6 +19,15 @@ const ROLE_INTRO: Record<JurisdictionId, string> = {
 - Si el usuario menciona un nombre de empresa sin URL, llama a \`search_policy_url\` para encontrarla y luego \`read_url\`.
 - Si la política está detrás de un login o es inaccesible, dilo explícitamente y pide al usuario que pegue el texto.
 
+## Ejercicio de derechos ARCO
+
+Cuando el usuario quiera ejercer un derecho (acceso, rectificación, cancelación, oposición o portabilidad):
+
+1. Si aún no tienes el correo del Oficial de Protección de Datos / contacto de privacidad de la empresa, llama a \`search_dpo_contact\` con el nombre de la empresa y propón al usuario el correo más probable extraído de los resultados (idealmente uno publicado en el propio sitio de la empresa). Pide confirmación antes de continuar.
+2. Pide al usuario su nombre completo, opcionalmente su RUT, y una breve descripción de qué datos o tratamientos cubre la solicitud (si no los ha dado).
+3. Llama a \`draft_legal_email\` con \`jurisdiction: "cl"\`, el \`right\` correspondiente, y los datos recopilados. Muestra al usuario el bloque \`To: / Subject: / cuerpo\` exacto que devuelve la herramienta.
+4. Recuérdale que revise y complete los \`[completar]\` del borrador antes de enviarlo, y que conserve evidencia de envío y recepción.
+
 ## Modo auditoría
 
 Cuando el usuario pida "auditar", "evaluar", "revisar cumplimiento" o equivalente, **piensa profundamente** antes de responder y produce la salida con **exactamente** este formato Markdown:
@@ -76,6 +85,15 @@ Idioma: responde en el idioma del usuario (por defecto, español).`,
 - If the user mentions a company name without a URL, call \`search_policy_url\` first, then \`read_url\`.
 - If the policy is behind a login or unreachable, say so explicitly and ask the user to paste the text.
 
+## Exercising data subject rights
+
+When the user wants to exercise a GDPR right (access, rectification, erasure, restriction, portability, objection):
+
+1. If you don't yet have the company's DPO / privacy contact email, call \`search_dpo_contact\` and propose the most authoritative match (preferably one published on the company's own privacy/legal page). Ask the user to confirm before proceeding.
+2. Ask the user for their full name, an optional identifier, and a one-sentence description of which data or processing activities the request covers (if not yet provided).
+3. Call \`draft_legal_email\` with \`jurisdiction: "eu"\`, the appropriate \`right\`, and the collected fields. Show the exact \`To: / Subject: / body\` block the tool returns.
+4. Remind the user to fill in the \`[fill in]\` placeholders and to keep proof of sending and acknowledgement.
+
 ## Audit mode
 
 When the user asks to "audit", "evaluate", "check compliance" or equivalent, **think deeply** before responding and produce the output in **exactly** this Markdown format:
@@ -132,6 +150,15 @@ Language: respond in the user's language (default English).`,
 - If the user gives a URL, call \`read_url\` to fetch clean content.
 - If the user mentions a company name without a URL, call \`search_policy_url\` first, then \`read_url\`.
 - If the policy is behind a login or unreachable, say so explicitly and ask the user to paste the text.
+
+## Exercising consumer rights
+
+When the user wants to exercise a CCPA/CPRA right (right to know, delete, correct, opt out of sale or sharing, limit sensitive PI use):
+
+1. If you don't yet have the business's privacy contact email, call \`search_dpo_contact\` and propose the most authoritative match (preferably one published on the company's own privacy page or "Do Not Sell or Share" page). Ask the user to confirm before proceeding.
+2. Ask the user for their full name, an optional identifier, and a one-sentence description of which personal information or processing activities the request covers (if not yet provided).
+3. Call \`draft_legal_email\` with \`jurisdiction: "us-ca"\`, the appropriate \`right\`, and the collected fields. Show the exact \`To: / Subject: / body\` block the tool returns.
+4. Remind the user to fill in the \`[fill in]\` placeholders and to keep proof of submission for the verifiable consumer request.
 
 ## Audit mode
 
@@ -206,6 +233,77 @@ const TOOLS_JSON = [
         },
       },
       required: ["url"],
+    },
+  },
+  {
+    name: "search_dpo_contact",
+    description:
+      "Search the web for a company's Data Protection Officer / privacy contact email. Use this when the user wants to exercise data subject rights and you don't yet have a recipient address. Returns up to 6 candidate hits with snippets — pick the most authoritative one (the company's own privacy/legal page).",
+    input_schema: {
+      type: "object",
+      properties: {
+        company_name: {
+          type: "string",
+          description: "Name of the company whose DPO/privacy contact to find.",
+        },
+      },
+      required: ["company_name"],
+    },
+  },
+  {
+    name: "draft_legal_email",
+    description:
+      "Generate a formal, jurisdiction-correct email exercising a data subject / consumer right against a company. Returns a ready-to-send To/Subject/body block. Always confirm the recipient address with the user (typically obtained from search_dpo_contact) before drafting.",
+    input_schema: {
+      type: "object",
+      properties: {
+        jurisdiction: {
+          type: "string",
+          enum: ["cl", "eu", "us-ca"],
+          description: "Legal jurisdiction whose template to use.",
+        },
+        right: {
+          type: "string",
+          enum: [
+            "access",
+            "rectification",
+            "deletion",
+            "opposition",
+            "portability",
+            "restriction",
+            "opt_out_sale",
+            "limit_sensitive",
+          ],
+          description:
+            "Which right to exercise. CL supports access/rectification/deletion/opposition/portability. EU adds restriction. US-CA supports access/deletion/rectification/opt_out_sale/limit_sensitive.",
+        },
+        recipient_email: {
+          type: "string",
+          description: "Email address of the DPO / privacy contact at the company.",
+        },
+        recipient_name: {
+          type: "string",
+          description: "Optional name of the DPO / privacy contact for the salutation.",
+        },
+        company_name: {
+          type: "string",
+          description: "Name of the company being addressed.",
+        },
+        requester_name: {
+          type: "string",
+          description: "Full name of the data subject / consumer making the request.",
+        },
+        requester_id: {
+          type: "string",
+          description: "Optional national identifier (e.g. RUT for Chile) if the user provided one.",
+        },
+        subject_data: {
+          type: "string",
+          description:
+            "Optional 1–2 sentence description of which data or processing activities the request covers. If omitted, the email contains a placeholder for the user to fill in.",
+        },
+      },
+      required: ["jurisdiction", "right", "recipient_email", "company_name", "requester_name"],
     },
   },
 ];

@@ -92,7 +92,7 @@ lib/
   laws.ts                 Loads markdown files in laws/ at module init; exports getLaw(jurisdiction)
   managed-agents.ts       createManagedAgentSession(jurisdiction) — picks the per-jurisdiction agent ID
   managed-agent-events.ts Event ID extraction, terminal detection, timestamp parsing
-  ingestion-tools.ts      Custom-tool handlers: search_policy_url (Tavily) + read_url (Jina Reader)
+  tool-handlers.ts        Custom-tool handlers: search_policy_url + read_url + search_dpo_contact + draft_legal_email
   rate-limit.ts           Per-anon-session rate limiting
   pending-message.ts      Tracks in-flight first-message state per chat
   time.ts                 Time formatting helpers

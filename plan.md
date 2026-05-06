@@ -38,7 +38,7 @@ Lens needs to analyze Privacy Policies against a selected jurisdiction's law. In
      - `search_policy_url(company_name)` — Tavily search; returns top candidate URLs with snippets.
      - `read_url(url)` — Jina Reader (`https://r.jina.ai/<url>`); returns clean markdown of the page.
 
-     The workflow watches for `agent.custom_tool_use` events emitted alongside `session.status_idle{stop_reason: requires_action}`, executes the corresponding handler (`lib/ingestion-tools.ts`), and replies with a `user.custom_tool_result` event. The tool definitions themselves live on the Anthropic Agent (configured in the console).
+     The workflow watches for `agent.custom_tool_use` events emitted alongside `session.status_idle{stop_reason: requires_action}`, executes the corresponding handler (`lib/tool-handlers.ts`), and replies with a `user.custom_tool_result` event. The tool definitions themselves live on the Anthropic Agent (configured in the console).
   7. **Agent-config payloads.** Generate `agent-config/<jurisdiction>.md` for each jurisdiction containing the system prompt (auditor role + citation rules + the law text) and the tool JSON schemas, ready to paste into the Anthropic console.
 - **Deferred from original Sprint 3:** PDF upload (drop entirely, revisit only if the agent can't reach a paywalled policy).
 
