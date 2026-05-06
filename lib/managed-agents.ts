@@ -14,14 +14,13 @@ export function getManagedAgentConfig(): {
   return { agentId, environmentId };
 }
 
-export async function createCodingSession(vaultIds: string[]) {
+export async function createManagedAgentSession() {
   const client = getAnthropic();
   const { agentId, environmentId } = getManagedAgentConfig();
 
   const session = await client.beta.sessions.create({
     agent: agentId,
     environment_id: environmentId,
-    vault_ids: vaultIds,
   });
   return {
     anthropicSessionId: session.id,
@@ -29,4 +28,3 @@ export async function createCodingSession(vaultIds: string[]) {
     environmentId: session.environment_id,
   };
 }
-

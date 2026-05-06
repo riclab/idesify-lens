@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { managedAgentSession } from "@/lib/schema";
-import { requireUserId } from "@/lib/session";
+import { requireSessionId } from "@/lib/session";
 import { checkMessageRateLimit } from "@/lib/rate-limit";
 import { messageHook } from "@/app/workflows/tail-session";
 
@@ -10,15 +10,12 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const authz = await requireUserId();
+  const authz = await requireSessionId();
   if ("error" in authz) return authz.error;
 
-  const rateCheck = checkMessageRateLimit(authz.userId);
+  const rateCheck = checkMessageRateLimit(authz.sessionId);
   if (!rateCheck.allowed) {
-    return NextResponse.json(
-      { error: rateCheck.reason },
-      { status: 429 },
-    );
+    return NextResponse.json({ error: rateCheck.reason }, { status: 429 });
   }
 
   let body: { sessionId?: string; text?: string };
@@ -28,9 +25,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const sessionId = body.sessionId?.trim();
+  const chatId = body.sessionId?.trim();
   const text = body.text?.trim();
-  if (!sessionId || !text) {
+  if (!chatId || !text) {
     return NextResponse.json(
       { error: "sessionId and text are required" },
       { status: 400 },
@@ -42,8 +39,8 @@ export async function POST(request: Request) {
     .from(managedAgentSession)
     .where(
       and(
-        eq(managedAgentSession.id, sessionId),
-        eq(managedAgentSession.userId, authz.userId),
+        eq(managedAgentSession.id, chatId),
+        eq(managedAgentSession.sessionId, authz.sessionId),
       ),
     )
     .limit(1);
@@ -66,12 +63,12 @@ export async function POST(request: Request) {
     })
     .where(
       and(
-        eq(managedAgentSession.id, sessionId),
-        eq(managedAgentSession.userId, authz.userId),
+        eq(managedAgentSession.id, chatId),
+        eq(managedAgentSession.sessionId, authz.sessionId),
       ),
     );
 
-  await messageHook.resume(`msg:${sessionId}`, { text });
+  await messageHook.resume(`msg:${chatId}`, { text });
 
   return NextResponse.json({ ok: true });
 }

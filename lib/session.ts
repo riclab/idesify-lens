@@ -1,27 +1,29 @@
 import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 
-export async function getSession() {
-  try {
-    return await auth.api.getSession({
-      headers: await headers(),
-    });
-  } catch {
-    return null;
-  }
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type SessionAuth =
+  | { sessionId: string }
+  | { error: NextResponse };
+
+function unauthorized(reason: string): NextResponse {
+  return NextResponse.json({ error: reason }, { status: 401 });
 }
 
-export async function requireUserId(): Promise<
-  { userId: string } | { error: Response }
-> {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    return {
-      error: new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }),
-    };
+export async function requireSessionId(): Promise<SessionAuth> {
+  const sessionId = (await headers()).get("x-session-id")?.trim();
+  if (!sessionId) return { error: unauthorized("Missing x-session-id header") };
+  if (!UUID_RE.test(sessionId)) {
+    return { error: unauthorized("Invalid x-session-id") };
   }
-  return { userId: session.user.id };
+  return { sessionId };
+}
+
+export function requireSessionIdFromQuery(value: string | null): SessionAuth {
+  const sessionId = value?.trim();
+  if (!sessionId) return { error: unauthorized("Missing sessionId") };
+  if (!UUID_RE.test(sessionId)) return { error: unauthorized("Invalid sessionId") };
+  return { sessionId };
 }

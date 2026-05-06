@@ -6,6 +6,7 @@ import { Streamdown, type Components } from "streamdown";
 import { cn } from "@/lib/utils";
 import { consumePendingMessage } from "@/lib/pending-message";
 import { useSidebar } from "@/lib/sidebar-context";
+import { apiFetch, getAnonSessionId } from "@/lib/anonymous-session";
 import { Button } from "@/components/ui/button";
 
 type TranscriptEvent = {
@@ -430,7 +431,10 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
     eventSourceRef.current?.close();
     runIdRef.current = runId;
 
-    const es = new EventSource(`/api/readable/${runId}`);
+    const anonId = getAnonSessionId();
+    const es = new EventSource(
+      `/api/readable/${runId}?sessionId=${encodeURIComponent(anonId)}`,
+    );
     eventSourceRef.current = es;
     setTailing(true);
 
@@ -471,7 +475,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
 
     async function init() {
       try {
-        const res = await fetch(
+        const res = await apiFetch(
           `/api/managed-agents/transcript?sessionId=${encodeURIComponent(sessionId)}`,
         );
         if (!res.ok) {
@@ -536,9 +540,8 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
     setText("");
 
     try {
-      const res = await fetch("/api/managed-agents/message", {
+      const res = await apiFetch("/api/managed-agents/message", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId, text: trimmed }),
       });
       if (!res.ok) {

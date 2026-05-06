@@ -1,7 +1,7 @@
-const PER_USER_LIMIT = 10;
+const PER_SESSION_LIMIT = 10;
 const GLOBAL_LIMIT = 100;
 
-const userCounts = new Map<string, { count: number; resetAt: number }>();
+const sessionCounts = new Map<string, { count: number; resetAt: number }>();
 let globalCount = 0;
 let globalResetAt = getNextReset();
 
@@ -16,11 +16,11 @@ function maybeReset() {
   if (Date.now() >= globalResetAt) {
     globalCount = 0;
     globalResetAt = getNextReset();
-    userCounts.clear();
+    sessionCounts.clear();
   }
 }
 
-export function checkMessageRateLimit(userId: string): {
+export function checkMessageRateLimit(sessionId: string): {
   allowed: boolean;
   reason?: string;
 } {
@@ -33,18 +33,18 @@ export function checkMessageRateLimit(userId: string): {
     };
   }
 
-  const entry = userCounts.get(userId);
-  const userCount = entry?.count ?? 0;
+  const entry = sessionCounts.get(sessionId);
+  const sessionCount = entry?.count ?? 0;
 
-  if (userCount >= PER_USER_LIMIT) {
+  if (sessionCount >= PER_SESSION_LIMIT) {
     return {
       allowed: false,
-      reason: `You've sent ${PER_USER_LIMIT} messages today. Try again tomorrow.`,
+      reason: `You've sent ${PER_SESSION_LIMIT} messages today. Try again tomorrow.`,
     };
   }
 
-  userCounts.set(userId, {
-    count: userCount + 1,
+  sessionCounts.set(sessionId, {
+    count: sessionCount + 1,
     resetAt: globalResetAt,
   });
   globalCount++;

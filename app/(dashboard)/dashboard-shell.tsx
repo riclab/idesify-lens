@@ -8,27 +8,7 @@ import { DashboardSidebar } from "./dashboard-sidebar";
 import { SidebarContext } from "@/lib/sidebar-context";
 import { cn } from "@/lib/utils";
 
-interface ViewerData {
-  name: string;
-  email: string;
-  image?: string | null;
-}
-
-interface SessionListItem {
-  id: string;
-  title: string | null;
-  updatedAt: string;
-}
-
-export function DashboardShell({
-  children,
-  viewer,
-  initialSessions,
-}: {
-  children: React.ReactNode;
-  viewer: ViewerData | null;
-  initialSessions: SessionListItem[];
-}) {
+export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -46,7 +26,6 @@ export function DashboardShell({
   return (
     <SidebarContext value={sidebarCtx}>
       <div className="flex h-dvh min-h-0 w-full overflow-hidden">
-        {/* Desktop sidebar */}
         <div
           className={cn(
             "hidden md:flex transition-[width] duration-200 ease-in-out",
@@ -54,15 +33,10 @@ export function DashboardShell({
           )}
         >
           {sidebarOpen && (
-            <DashboardSidebar
-              viewer={viewer}
-              initialSessions={initialSessions}
-              onToggleSidebar={toggleSidebar}
-            />
+            <DashboardSidebar onToggleSidebar={toggleSidebar} />
           )}
         </div>
 
-        {/* Mobile overlay */}
         {mobileOpen && (
           <>
             <div
@@ -71,8 +45,6 @@ export function DashboardShell({
             />
             <div className="fixed inset-y-0 left-0 z-50 w-64 md:hidden">
               <DashboardSidebar
-                viewer={viewer}
-                initialSessions={initialSessions}
                 onNavigate={closeMobile}
                 onToggleSidebar={closeMobile}
               />
@@ -80,7 +52,6 @@ export function DashboardShell({
           </>
         )}
 
-        {/* Main content */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {!isChat && (
             <div className="flex items-center gap-2 px-3 pt-3">
@@ -88,7 +59,7 @@ export function DashboardShell({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="hidden md:flex"
+                  className="hidden md:flex cursor-pointer"
                   onClick={toggleSidebar}
                   aria-label="Open sidebar"
                 >
@@ -98,7 +69,7 @@ export function DashboardShell({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="md:hidden"
+                className="md:hidden cursor-pointer"
                 onClick={() => setMobileOpen(true)}
                 aria-label="Open sidebar"
               >

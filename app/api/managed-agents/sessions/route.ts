@@ -2,13 +2,13 @@ import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { managedAgentSession } from "@/lib/schema";
-import { requireUserId } from "@/lib/session";
+import { requireSessionId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const authz = await requireUserId();
+  const authz = await requireSessionId();
   if ("error" in authz) return authz.error;
 
   const rows = await db
@@ -18,7 +18,7 @@ export async function GET() {
       updatedAt: managedAgentSession.updatedAt,
     })
     .from(managedAgentSession)
-    .where(eq(managedAgentSession.userId, authz.userId))
+    .where(eq(managedAgentSession.sessionId, authz.sessionId))
     .orderBy(desc(managedAgentSession.updatedAt));
 
   return NextResponse.json({

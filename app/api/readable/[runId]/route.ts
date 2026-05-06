@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and } from "drizzle-orm";
 import { getRun } from "workflow/api";
-import { requireUserId } from "@/lib/session";
+import { requireSessionIdFromQuery } from "@/lib/session";
 import { db } from "@/lib/db";
 import { managedAgentSession } from "@/lib/schema";
 
@@ -13,7 +13,9 @@ type RouteContext = {
 };
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
-  const authz = await requireUserId();
+  const authz = requireSessionIdFromQuery(
+    request.nextUrl.searchParams.get("sessionId"),
+  );
   if ("error" in authz) return authz.error;
 
   const { runId } = await params;
@@ -24,26 +26,20 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     .where(
       and(
         eq(managedAgentSession.workflowRunId, runId),
-        eq(managedAgentSession.userId, authz.userId),
+        eq(managedAgentSession.sessionId, authz.sessionId),
       ),
     )
     .limit(1);
 
   if (!row) {
-    return Response.json(
-      { error: "Not found" },
-      { status: 404 },
-    );
+    return Response.json({ error: "Not found" }, { status: 404 });
   }
 
   let run;
   try {
     run = getRun(runId);
   } catch {
-    return Response.json(
-      { error: "Run not found" },
-      { status: 404 },
-    );
+    return Response.json({ error: "Run not found" }, { status: 404 });
   }
 
   const readable = run.getReadable();

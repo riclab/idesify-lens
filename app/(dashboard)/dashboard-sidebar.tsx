@@ -2,15 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ArrowRight,
-  Ellipsis,
-  LogIn,
-  PanelLeft,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Ellipsis, PanelLeft, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,20 +12,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { VercelIcon } from "@/components/icons";
-import { UserMenu } from "@/components/user-menu";
-import { SignInModal } from "@/components/sign-in-modal";
+import { apiFetch } from "@/lib/anonymous-session";
 import { cn } from "@/lib/utils";
 
 interface SessionListItem {
   id: string;
   title: string | null;
   updatedAt: string;
-}
-
-interface ViewerData {
-  name: string;
-  email: string;
-  image?: string | null;
 }
 
 function formatTimeAgo(dateStr: string): string {
@@ -50,56 +36,48 @@ function formatTimeAgo(dateStr: string): string {
 }
 
 export function DashboardSidebar({
-  viewer,
-  initialSessions,
   onNavigate,
   onToggleSidebar,
   className,
 }: {
-  viewer: ViewerData | null;
-  initialSessions: SessionListItem[];
   onNavigate?: () => void;
   onToggleSidebar?: () => void;
   className?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [sessionItems, setSessionItems] = useState(initialSessions);
-  const [showSignIn, setShowSignIn] = useState(false);
-
-  useEffect(() => {
-    setSessionItems(initialSessions);
-  }, [initialSessions]);
+  const [sessionItems, setSessionItems] = useState<SessionListItem[]>([]);
 
   const refreshSessions = useCallback(async () => {
     try {
-      const res = await fetch("/api/managed-agents/sessions");
+      const res = await apiFetch("/api/managed-agents/sessions");
       if (!res.ok) return;
       const data: { sessions?: SessionListItem[] } = await res.json();
-      const latest = data.sessions ?? [];
-      setSessionItems(latest);
+      setSessionItems(data.sessions ?? []);
     } catch {
       // best effort
     }
   }, []);
 
   useEffect(() => {
-    if (!viewer) return;
-    void refreshSessions();
+    const initial = setTimeout(() => void refreshSessions(), 0);
     const interval = setInterval(() => void refreshSessions(), 5_000);
-    return () => clearInterval(interval);
-  }, [viewer, refreshSessions]);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, [refreshSessions]);
 
   const deleteSession = useCallback(
-    async (sessionId: string) => {
+    async (chatId: string) => {
       try {
-        const res = await fetch(
-          `/api/managed-agents/session?sessionId=${encodeURIComponent(sessionId)}`,
+        const res = await apiFetch(
+          `/api/managed-agents/session?sessionId=${encodeURIComponent(chatId)}`,
           { method: "DELETE" },
         );
         if (!res.ok) return;
-        setSessionItems((prev) => prev.filter((s) => s.id !== sessionId));
-        if (pathname === `/chat/${sessionId}`) {
+        setSessionItems((prev) => prev.filter((s) => s.id !== chatId));
+        if (pathname === `/chat/${chatId}`) {
           router.push("/");
         }
       } catch {
@@ -137,6 +115,7 @@ export function DashboardSidebar({
               size="icon-sm"
               aria-label="Close sidebar"
               onClick={onToggleSidebar}
+              className="cursor-pointer"
             >
               <PanelLeft className="size-4" />
             </Button>
@@ -145,7 +124,7 @@ export function DashboardSidebar({
         <Link
           href="/"
           onClick={onNavigate}
-          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground"
+          className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground"
         >
           <Plus className="size-4" />
           New question
@@ -182,7 +161,7 @@ export function DashboardSidebar({
               </Link>
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 opacity-0 transition-opacity hover:bg-muted group-hover/session:opacity-100 data-[popup-open]:opacity-100 cursor-pointer"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-1 opacity-0 transition-opacity hover:bg-muted group-hover/session:opacity-100 data-[popup-open]:opacity-100"
                   aria-label="Session options"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -190,7 +169,7 @@ export function DashboardSidebar({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" side="bottom">
                   <DropdownMenuItem
-                    className="text-red-500"
+                    className="cursor-pointer text-red-500"
                     onClick={() => void deleteSession(session.id)}
                   >
                     <Trash2 className="size-4" />
@@ -201,27 +180,6 @@ export function DashboardSidebar({
             </div>
           );
         })}
-      </div>
-
-      <div className="border-t border-border px-2 py-2">
-        {viewer ? (
-          <UserMenu user={viewer} />
-        ) : (
-          <>
-            <Button
-              variant="ghost"
-              className="w-full justify-between"
-              onClick={() => setShowSignIn(true)}
-            >
-              <span className="flex items-center gap-2">
-                <LogIn className="size-4" />
-                Sign in
-              </span>
-              <ArrowRight className="size-3.5 text-muted-foreground" />
-            </Button>
-            <SignInModal open={showSignIn} onOpenChange={setShowSignIn} />
-          </>
-        )}
       </div>
     </aside>
   );
