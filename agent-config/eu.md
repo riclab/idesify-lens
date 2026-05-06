@@ -136,3 +136,122 @@ Then add each tool below as a custom tool on the same agent.
   }
 }
 ```
+
+### submit_findings
+
+```json
+{
+  "name": "submit_findings",
+  "description": "Submit the final structured audit report. Call this exactly ONCE at the end of an audit, after you have analyzed the policy and located citations. Do NOT call this for clarifications, follow-ups, or partial summaries — only for a complete audit. The findings array should be ordered by severity (critical first).",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "policy_url": {
+        "type": "string",
+        "description": "The URL of the policy that was audited, if known."
+      },
+      "policy_label": {
+        "type": "string",
+        "description": "Short display label for the policy, e.g. 'mercadolibre.cl/privacidad' or 'Acme Privacy Notice'."
+      },
+      "compliance_score": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Overall compliance score 0–100. 90–100 = compliant, 70–89 = mostly compliant, 50–69 = medium risk, <50 = high risk."
+      },
+      "risk_level": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "description": "Aggregate risk level inferred from the findings."
+      },
+      "findings": {
+        "type": "array",
+        "description": "All findings from the audit, including critical issues, warnings, info items, and items the policy passes.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Short stable id, e.g. 'C-01' for first critical, 'W-02' for second warning, 'I-01' info, 'P-01' passing."
+            },
+            "severity": {
+              "type": "string",
+              "enum": [
+                "critical",
+                "warning",
+                "info",
+                "passing"
+              ],
+              "description": "critical = direct non-compliance / sanctionable. warning = substantive gap or ambiguous wording. info = neutral observation. passing = the policy meets this requirement."
+            },
+            "category": {
+              "type": "string",
+              "description": "One- or two-word topical category, e.g. 'Governance', 'Transfers', 'Retention', 'User Rights', 'Minors', 'Cookies', 'Lawful basis', 'Security'."
+            },
+            "title": {
+              "type": "string",
+              "description": "Short headline for the finding, ≤80 chars."
+            },
+            "description": {
+              "type": "string",
+              "description": "1–2 sentences explaining the finding."
+            },
+            "article_ref": {
+              "type": "string",
+              "description": "Citation reference, e.g. 'Art. 24', 'Art. 11(d)', 'Guideline 3/2025'."
+            },
+            "law_label": {
+              "type": "string",
+              "description": "Short law label, e.g. 'Ley 21.719', 'GDPR', 'CCPA'."
+            },
+            "article_quote": {
+              "type": "string",
+              "description": "Verbatim quote from the cited article (no quotation marks; the UI styles it)."
+            },
+            "why_it_matters": {
+              "type": "string",
+              "description": "1–3 sentences on the practical risk or benefit."
+            },
+            "suggested_rewrite": {
+              "type": "object",
+              "description": "Concrete rewrite suggestion (only for critical/warning findings).",
+              "properties": {
+                "before": {
+                  "type": "string",
+                  "description": "Current policy text, or '' if the policy is silent on this point."
+                },
+                "after": {
+                  "type": "string",
+                  "description": "Proposed replacement / addition."
+                }
+              },
+              "required": [
+                "before",
+                "after"
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "severity",
+            "category",
+            "title",
+            "description"
+          ]
+        }
+      }
+    },
+    "required": [
+      "policy_label",
+      "compliance_score",
+      "risk_level",
+      "findings"
+    ]
+  }
+}
+```

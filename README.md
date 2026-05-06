@@ -4,6 +4,8 @@ A Next.js 16 web app that audits privacy policies against three jurisdictions' d
 
 There is no login — users are identified by an anonymous UUID generated in `localStorage` on first visit. Pick a jurisdiction, paste a policy URL or company name, and the agent fetches the policy, cites the law verbatim, grades each finding by severity, and offers to draft an ARCO / data-subject / consumer-rights email.
 
+When the agent finishes an audit, it persists a structured report (compliance score, severity-bucketed findings, citations, suggested rewrites) and surfaces a navigable Report view at `/chat/[sessionId]/report` alongside the chat transcript.
+
 ## Stack
 
 | Layer       | Choice                                                                    |
@@ -51,7 +53,7 @@ This generates six files under `agent-config/`:
 - `eu.system.md` + `eu.md` — EU (GDPR)
 - `us-ca.system.md` + `us-ca.md` — California (CCPA)
 
-Follow the steps in [`agent-config/README.md`](./agent-config/README.md) to create three Agents in the Anthropic console, paste each `*.system.md` into the system-prompt field, and attach the four custom tools (`search_policy_url`, `read_url`, `search_dpo_contact`, `draft_legal_email`) defined in each `*.md`. Enable **Extended Thinking** on each Agent (8k–16k token budget) — the SDK does not expose this knob, so it must be done in the console.
+Follow the steps in [`agent-config/README.md`](./agent-config/README.md) to create three Agents in the Anthropic console, paste each `*.system.md` into the system-prompt field, and attach the five custom tools (`search_policy_url`, `read_url`, `search_dpo_contact`, `draft_legal_email`, `submit_findings`) defined in each `*.md`. Enable **Extended Thinking** on each Agent (8k–16k token budget) — the SDK does not expose this knob, so it must be done in the console.
 
 ### 4. Set environment variables
 
@@ -77,7 +79,7 @@ pnpm dev
 
 ## Custom tools
 
-The Agents call four custom tools. Their definitions live on the Anthropic Agent (pasted from `agent-config/*.md`); the actual handlers run server-side in the durable workflow when an `agent.custom_tool_use` event arrives.
+The Agents call five custom tools. Their definitions live on the Anthropic Agent (pasted from `agent-config/*.md`); the actual handlers run server-side in the durable workflow when an `agent.custom_tool_use` event arrives.
 
 | Tool                  | Backend                                             | Purpose |
 | --------------------- | --------------------------------------------------- | ------- |
@@ -85,6 +87,7 @@ The Agents call four custom tools. Their definitions live on the Anthropic Agent
 | `read_url`            | [Jina Reader](https://r.jina.ai)                    | Fetch a public URL as clean markdown. |
 | `search_dpo_contact`  | Tavily search (DPO terminology, EN+ES)              | Find the company's DPO / privacy contact email. |
 | `draft_legal_email`   | Pure code — per-jurisdiction email templates        | Produce a `To: / Subject: / body` block citing the right legal articles. |
+| `submit_findings`     | Pure code — upserts the structured audit report     | Called once at the end of an audit; persists score, findings, citations, and suggested rewrites for the Report view. |
 
 Handlers live in [`lib/tool-handlers.ts`](./lib/tool-handlers.ts).
 
@@ -96,11 +99,15 @@ Handlers live in [`lib/tool-handlers.ts`](./lib/tool-handlers.ts).
 | `lib/anonymous-session.ts`          | Client-side: `getAnonSessionId()` + `apiFetch()` (injects `x-session-id`)                |
 | `lib/laws.ts`                       | Loads markdown law texts from `laws/` at module init; `getLaw(jurisdiction)`             |
 | `lib/managed-agents.ts`             | `createManagedAgentSession(jurisdiction)` — picks the correct per-jurisdiction agent ID  |
-| `lib/tool-handlers.ts`              | The four custom-tool handlers (Tavily, Jina, email drafter)                              |
-| `lib/schema.ts`                     | Drizzle schema (single `managed_agent_session` table)                                    |
+| `lib/tool-handlers.ts`              | The five custom-tool handlers (Tavily, Jina, email drafter, structured-report writer)    |
+| `lib/audit-report-types.ts`         | Shared `Finding`, `AuditReport`, `PipelineStep` types                                    |
+| `lib/audit-pipeline.ts`             | Pairs `agent.custom_tool_use` ↔ `user.custom_tool_result` events to derive step timings  |
+| `lib/schema.ts`                     | Drizzle schema (`managed_agent_session`, `audit_report` tables)                          |
 | `app/workflows/tail-session.ts`     | Durable workflow: tool-call loop, SSE stream of events, `messageHook` for follow-ups     |
-| `app/api/managed-agents/`           | REST endpoints (session CRUD, message, transcript)                                       |
+| `app/api/managed-agents/`           | REST endpoints (session CRUD, message, transcript, report)                               |
 | `app/api/readable/[runId]/`         | SSE bridge to the workflow's readable stream                                             |
+| `app/(dashboard)/chat/[sessionId]/report/` | Structured audit report view (score, findings, pipeline timings, suggested rewrites) |
+| `components/report/audit-report-view.tsx` | Client component rendering the report, with severity filters and finding-detail panel |
 | `scripts/build-agent-config.ts`     | Regenerates `agent-config/*.md` and `*.system.md` from `laws/*.md`                       |
 | `agent-config/`                     | Generated console-paste payloads (system prompts + tool JSON)                            |
 | `laws/`                             | Static law texts (one markdown file per jurisdiction)                                    |

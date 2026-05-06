@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowUp, Check, ChevronRight, Loader2, PanelLeft } from "lucide-react";
+import { ArrowUp, Check, ChevronRight, FileText, Loader2, PanelLeft } from "lucide-react";
 import { Streamdown, type Components } from "streamdown";
 import { cn } from "@/lib/utils";
 import { consumePendingMessage } from "@/lib/pending-message";
@@ -459,6 +459,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [hasReport, setHasReport] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -563,6 +564,35 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [events.length, tailing, sending]);
+
+  // Watch for the agent calling submit_findings, then verify the report row exists.
+  // Also do an initial check in case the report was already produced before mount.
+  useEffect(() => {
+    if (hasReport) return;
+    const sawSubmit = events.some(
+      (ev) =>
+        ev.type === "agent.custom_tool_use" &&
+        (ev.payload as { name?: string }).name === "submit_findings",
+    );
+    if (!sawSubmit && events.length > 0) return;
+
+    let cancelled = false;
+    async function check() {
+      try {
+        const res = await apiFetch(
+          `/api/managed-agents/report?sessionId=${encodeURIComponent(sessionId)}`,
+          { method: "HEAD" },
+        );
+        if (!cancelled && res.ok) setHasReport(true);
+      } catch {
+        /* network blip — try again on next event */
+      }
+    }
+    void check();
+    return () => {
+      cancelled = true;
+    };
+  }, [events, hasReport, sessionId]);
 
   async function handleSend() {
     const trimmed = text.trim();
@@ -674,7 +704,48 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                   <span className="dot" />
                   {isActive ? "auditing" : "idle"}
                 </span>
+                {hasReport && (
+                  <Link
+                    href={`/chat/${sessionId}/report`}
+                    className="lens-meta-pill cursor-pointer"
+                    style={{
+                      borderColor: "var(--accent-deep)",
+                      color: "var(--accent-deep)",
+                    }}
+                  >
+                    <FileText className="size-3" />
+                    Report ready →
+                  </Link>
+                )}
               </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <span
+                className="cursor-default rounded-full px-3 py-1.5 text-[12.5px]"
+                style={{
+                  background: "var(--secondary)",
+                  color: "var(--ink-2)",
+                }}
+              >
+                Transcript
+              </span>
+              {hasReport ? (
+                <Link
+                  href={`/chat/${sessionId}/report`}
+                  className="cursor-pointer rounded-full px-3 py-1.5 text-[12.5px] transition-colors hover:bg-secondary"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Report
+                </Link>
+              ) : (
+                <span
+                  className="cursor-default rounded-full px-3 py-1.5 text-[12.5px]"
+                  style={{ color: "var(--muted-2)" }}
+                  title="Available once the audit completes"
+                >
+                  Report
+                </span>
+              )}
             </div>
           </div>
         </div>

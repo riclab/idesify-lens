@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
       anthropicSessionId: anthropic.anthropicSessionId,
       initialMessage: text,
       jurisdiction,
+      sessionId: authz.sessionId,
     },
   ]);
 

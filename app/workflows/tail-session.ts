@@ -1,7 +1,7 @@
 import { defineHook, sleep, getWritable } from "workflow";
 import { getAnthropic } from "@/lib/anthropic";
 import { anthropicEventId } from "@/lib/managed-agent-events";
-import { executeTool } from "@/lib/tool-handlers";
+import { executeTool, type ToolContext } from "@/lib/tool-handlers";
 
 const MAX_POLLS_PER_TURN = 200;
 const MAX_TOOL_ROUNDS = 10;
@@ -117,6 +117,7 @@ async function pollAndStream(input: {
 async function runToolsAndReply(input: {
   anthropicSessionId: string;
   toolUseEventIds: string[];
+  ctx: ToolContext;
 }): Promise<void> {
   "use step";
   console.log(`[runTools] START session=${input.anthropicSessionId} ids=${input.toolUseEventIds.join(",")}`);
@@ -149,7 +150,7 @@ async function runToolsAndReply(input: {
 
   for (const call of calls) {
     console.log(`[runTools] executing ${call.name} (${call.id})`);
-    const result = await executeTool(call.name, call.toolInput);
+    const result = await executeTool(call.name, call.toolInput, input.ctx);
     await client.beta.sessions.events.send(input.anthropicSessionId, {
       events: [
         {
@@ -168,6 +169,7 @@ async function processTurn(
   anthropicSessionId: string,
   text: string,
   lastEventId: string | null,
+  ctx: ToolContext,
 ): Promise<string | null> {
   await sendMessage(anthropicSessionId, text);
 
@@ -198,6 +200,7 @@ async function processTurn(
       await runToolsAndReply({
         anthropicSessionId,
         toolUseEventIds: result.toolUseEventIds,
+        ctx,
       });
     }
   }
@@ -209,9 +212,16 @@ export async function sessionWorkflow(input: {
   anthropicSessionId: string;
   initialMessage: string;
   jurisdiction?: string;
+  sessionId?: string;
 }) {
   "use workflow";
   console.log(`[sessionWorkflow] START internal=${input.internalSessionId} anthropic=${input.anthropicSessionId} jurisdiction=${input.jurisdiction ?? "cl"}`);
+
+  const ctx: ToolContext = {
+    anthropicSessionId: input.anthropicSessionId,
+    sessionId: input.sessionId ?? "",
+    jurisdiction: input.jurisdiction ?? "cl",
+  };
 
   let lastEventId: string | null = null;
 
@@ -219,6 +229,7 @@ export async function sessionWorkflow(input: {
     input.anthropicSessionId,
     input.initialMessage,
     lastEventId,
+    ctx,
   );
 
   const hook = messageHook.create({
@@ -231,6 +242,7 @@ export async function sessionWorkflow(input: {
       input.anthropicSessionId,
       text,
       lastEventId,
+      ctx,
     );
   }
 }

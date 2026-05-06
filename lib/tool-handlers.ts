@@ -1,6 +1,23 @@
+import { db } from "./db";
+import { auditReport } from "./schema";
+import { getAnthropic } from "./anthropic";
+import { derivePipelineSteps } from "./audit-pipeline";
+import type {
+  Finding,
+  FindingRewrite,
+  FindingSeverity,
+  PipelineStep,
+} from "./audit-report-types";
+
 export type ToolResult = {
   text: string;
   isError: boolean;
+};
+
+export type ToolContext = {
+  anthropicSessionId: string;
+  sessionId: string;
+  jurisdiction: string;
 };
 
 type SearchHit = {
@@ -305,9 +322,159 @@ async function runDraftLegalEmail(input: Record<string, unknown>): Promise<ToolR
   return { text, isError: false };
 }
 
+const VALID_SEVERITIES: ReadonlySet<FindingSeverity> = new Set([
+  "critical",
+  "warning",
+  "info",
+  "passing",
+]);
+
+const VALID_RISK = new Set(["low", "medium", "high"]);
+
+function asString(v: unknown): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+
+function asTrimmed(v: unknown): string | undefined {
+  const s = asString(v)?.trim();
+  return s ? s : undefined;
+}
+
+function parseRewrite(v: unknown): FindingRewrite | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const obj = v as Record<string, unknown>;
+  const before = asString(obj.before);
+  const after = asString(obj.after);
+  if (typeof before !== "string" || typeof after !== "string") return undefined;
+  return { before, after };
+}
+
+function parseFinding(raw: unknown): Finding | { error: string } {
+  if (!raw || typeof raw !== "object") return { error: "finding is not an object" };
+  const obj = raw as Record<string, unknown>;
+  const id = asTrimmed(obj.id);
+  const sev = asTrimmed(obj.severity) as FindingSeverity | undefined;
+  const category = asTrimmed(obj.category);
+  const title = asTrimmed(obj.title);
+  const description = asTrimmed(obj.description);
+  if (!id) return { error: "missing id" };
+  if (!sev || !VALID_SEVERITIES.has(sev)) return { error: `invalid severity for ${id}` };
+  if (!category) return { error: `missing category for ${id}` };
+  if (!title) return { error: `missing title for ${id}` };
+  if (!description) return { error: `missing description for ${id}` };
+  return {
+    id,
+    severity: sev,
+    category,
+    title,
+    description,
+    article_ref: asTrimmed(obj.article_ref),
+    law_label: asTrimmed(obj.law_label),
+    article_quote: asTrimmed(obj.article_quote),
+    why_it_matters: asTrimmed(obj.why_it_matters),
+    suggested_rewrite: parseRewrite(obj.suggested_rewrite),
+  };
+}
+
+async function fetchPipelineSteps(
+  anthropicSessionId: string,
+): Promise<PipelineStep[]> {
+  try {
+    const client = getAnthropic();
+    const page = await client.beta.sessions.events.list(anthropicSessionId, {
+      limit: 100,
+    });
+    return derivePipelineSteps(
+      page.data as unknown as Parameters<typeof derivePipelineSteps>[0],
+    );
+  } catch (e) {
+    console.warn(
+      `[submit_findings] could not fetch events for pipeline: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
+    );
+    return [];
+  }
+}
+
+async function runSubmitFindings(
+  input: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const policyLabel = asTrimmed(input.policy_label);
+  if (!policyLabel) {
+    return { text: "policy_label is required", isError: true };
+  }
+
+  const scoreRaw = input.compliance_score;
+  const score = typeof scoreRaw === "number" ? Math.round(scoreRaw) : NaN;
+  if (!Number.isFinite(score) || score < 0 || score > 100) {
+    return {
+      text: "compliance_score must be an integer between 0 and 100",
+      isError: true,
+    };
+  }
+
+  const riskLevel = asTrimmed(input.risk_level);
+  if (!riskLevel || !VALID_RISK.has(riskLevel)) {
+    return { text: "risk_level must be 'low', 'medium', or 'high'", isError: true };
+  }
+
+  const findingsRaw = input.findings;
+  if (!Array.isArray(findingsRaw) || findingsRaw.length === 0) {
+    return { text: "findings must be a non-empty array", isError: true };
+  }
+
+  const findings: Finding[] = [];
+  for (const raw of findingsRaw) {
+    const parsed = parseFinding(raw);
+    if ("error" in parsed) {
+      return { text: `Invalid finding: ${parsed.error}`, isError: true };
+    }
+    findings.push(parsed);
+  }
+
+  const policyUrl = asTrimmed(input.policy_url) ?? null;
+  const pipeline = await fetchPipelineSteps(ctx.anthropicSessionId);
+  const id = crypto.randomUUID();
+
+  await db
+    .insert(auditReport)
+    .values({
+      id,
+      anthropicSessionId: ctx.anthropicSessionId,
+      sessionId: ctx.sessionId,
+      jurisdiction: ctx.jurisdiction,
+      policyUrl,
+      policyLabel,
+      complianceScore: score,
+      riskLevel,
+      findingsJson: findings,
+      pipelineJson: pipeline,
+    })
+    .onConflictDoUpdate({
+      target: auditReport.anthropicSessionId,
+      set: {
+        policyUrl,
+        policyLabel,
+        complianceScore: score,
+        riskLevel,
+        findingsJson: findings,
+        pipelineJson: pipeline,
+        jurisdiction: ctx.jurisdiction,
+      },
+    });
+
+  return {
+    text: `Report saved with ${findings.length} findings (score ${score}/100, risk ${riskLevel}).`,
+    isError: false,
+  };
+}
+
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
+  ctx: ToolContext,
 ): Promise<ToolResult> {
   try {
     switch (name) {
@@ -319,6 +486,8 @@ export async function executeTool(
         return await runSearchDpoContact(input);
       case "draft_legal_email":
         return await runDraftLegalEmail(input);
+      case "submit_findings":
+        return await runSubmitFindings(input, ctx);
       default:
         return { text: `Unknown tool: ${name}`, isError: true };
     }

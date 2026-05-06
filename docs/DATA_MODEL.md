@@ -76,6 +76,24 @@ These are managed by Better Auth and should not be modified directly. They follo
 
 **Unique constraint**: `(sessionId, anthropicEventId)` - enables idempotent `ON CONFLICT DO NOTHING` inserts during polling.
 
+**`audit_report`** - one structured audit per session, written by the `submit_findings` tool
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | text PK | `crypto.randomUUID()` |
+| `anthropicSessionId` | text (unique) | One report per Anthropic session; `ON CONFLICT DO UPDATE` lets the agent overwrite if it re-audits |
+| `sessionId` | text | Anonymous user UUID — used to authorize reads |
+| `jurisdiction` | text | `"cl"`, `"eu"`, or `"us-ca"` |
+| `policyUrl` | text | Audited policy URL, if known |
+| `policyLabel` | text | Display label, e.g. `"mercadolibre.cl/privacidad"` |
+| `complianceScore` | integer | 0–100; surfaced as the big number on the report view |
+| `riskLevel` | text | `"low"` / `"medium"` / `"high"` |
+| `findingsJson` | jsonb (`Finding[]`) | All findings (critical, warning, info, passing) with citations and optional rewrite diffs |
+| `pipelineJson` | jsonb (`PipelineStep[]`) | Snapshot of tool-call durations derived from session events at write time |
+| `createdAt` | timestamptz | |
+
+The `Finding` and `PipelineStep` shapes are typed in [`lib/audit-report-types.ts`](../lib/audit-report-types.ts) and shared between the tool handler and the report UI.
+
 ## Conventions
 
 ### IDs

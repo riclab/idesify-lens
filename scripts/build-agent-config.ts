@@ -69,6 +69,18 @@ Una o dos frases con el veredicto general (cumple / cumple parcialmente / no cum
 3. Nunca parafrasees como si fuera cita. Si no encuentras el texto exacto, di "Ausente —".
 4. Si no estás seguro del número de artículo, busca de nuevo en la ley antes de responder.
 
+## Reporte estructurado (obligatorio al auditar)
+
+Después de producir el Markdown anterior, **debes llamar a la herramienta \`submit_findings\` exactamente UNA vez** con el reporte estructurado. Esto persiste el resultado en una vista de "Reporte" navegable separada del chat.
+
+- Llámala SÓLO al completar una auditoría. NO la llames para responder preguntas de seguimiento, aclaraciones, ni para borradores parciales.
+- Incluye TODOS los hallazgos, también los que la política cumple bien (\`severity: "passing"\`), para reflejar lo evaluado.
+- \`compliance_score\`: 90–100 cumple, 70–89 cumple parcialmente, 50–69 riesgo medio, <50 riesgo alto.
+- \`risk_level\`: \`low\` / \`medium\` / \`high\` coherente con la puntuación.
+- IDs estables: \`C-01\`, \`C-02\` para críticos; \`W-01\`, \`W-02\` para warnings; \`I-01\` info; \`P-01\` passing.
+- Para hallazgos críticos y warnings, incluye \`suggested_rewrite\` con \`before\` (texto actual de la política, o cadena vacía si está ausente) y \`after\` (redacción propuesta).
+- \`article_quote\` debe ser el texto literal del artículo, sin comillas adicionales.
+
 Idioma: responde en el idioma del usuario (por defecto, español).`,
   eu: `You are Idesify-Lens, a legal auditor specialized in data protection under the EU General Data Protection Regulation (GDPR, Regulation 2016/679).
 
@@ -304,6 +316,100 @@ const TOOLS_JSON = [
         },
       },
       required: ["jurisdiction", "right", "recipient_email", "company_name", "requester_name"],
+    },
+  },
+  {
+    name: "submit_findings",
+    description:
+      "Submit the final structured audit report. Call this exactly ONCE at the end of an audit, after you have analyzed the policy and located citations. Do NOT call this for clarifications, follow-ups, or partial summaries — only for a complete audit. The findings array should be ordered by severity (critical first).",
+    input_schema: {
+      type: "object",
+      properties: {
+        policy_url: {
+          type: "string",
+          description: "The URL of the policy that was audited, if known.",
+        },
+        policy_label: {
+          type: "string",
+          description: "Short display label for the policy, e.g. 'mercadolibre.cl/privacidad' or 'Acme Privacy Notice'.",
+        },
+        compliance_score: {
+          type: "integer",
+          minimum: 0,
+          maximum: 100,
+          description:
+            "Overall compliance score 0–100. 90–100 = compliant, 70–89 = mostly compliant, 50–69 = medium risk, <50 = high risk.",
+        },
+        risk_level: {
+          type: "string",
+          enum: ["low", "medium", "high"],
+          description: "Aggregate risk level inferred from the findings.",
+        },
+        findings: {
+          type: "array",
+          description: "All findings from the audit, including critical issues, warnings, info items, and items the policy passes.",
+          items: {
+            type: "object",
+            properties: {
+              id: {
+                type: "string",
+                description: "Short stable id, e.g. 'C-01' for first critical, 'W-02' for second warning, 'I-01' info, 'P-01' passing.",
+              },
+              severity: {
+                type: "string",
+                enum: ["critical", "warning", "info", "passing"],
+                description:
+                  "critical = direct non-compliance / sanctionable. warning = substantive gap or ambiguous wording. info = neutral observation. passing = the policy meets this requirement.",
+              },
+              category: {
+                type: "string",
+                description: "One- or two-word topical category, e.g. 'Governance', 'Transfers', 'Retention', 'User Rights', 'Minors', 'Cookies', 'Lawful basis', 'Security'.",
+              },
+              title: {
+                type: "string",
+                description: "Short headline for the finding, ≤80 chars.",
+              },
+              description: {
+                type: "string",
+                description: "1–2 sentences explaining the finding.",
+              },
+              article_ref: {
+                type: "string",
+                description: "Citation reference, e.g. 'Art. 24', 'Art. 11(d)', 'Guideline 3/2025'.",
+              },
+              law_label: {
+                type: "string",
+                description: "Short law label, e.g. 'Ley 21.719', 'GDPR', 'CCPA'.",
+              },
+              article_quote: {
+                type: "string",
+                description: "Verbatim quote from the cited article (no quotation marks; the UI styles it).",
+              },
+              why_it_matters: {
+                type: "string",
+                description: "1–3 sentences on the practical risk or benefit.",
+              },
+              suggested_rewrite: {
+                type: "object",
+                description: "Concrete rewrite suggestion (only for critical/warning findings).",
+                properties: {
+                  before: {
+                    type: "string",
+                    description: "Current policy text, or '' if the policy is silent on this point.",
+                  },
+                  after: {
+                    type: "string",
+                    description: "Proposed replacement / addition.",
+                  },
+                },
+                required: ["before", "after"],
+              },
+            },
+            required: ["id", "severity", "category", "title", "description"],
+          },
+        },
+      },
+      required: ["policy_label", "compliance_score", "risk_level", "findings"],
     },
   },
 ];
