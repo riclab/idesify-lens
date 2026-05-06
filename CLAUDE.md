@@ -4,16 +4,16 @@
 This version has breaking changes - APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# Claude Managed Agents Showcase
+# Idesify-Lens
 
-A Next.js 16 web UI for Anthropic's Managed Agents API. Users sign in with Vercel, create agent sessions, send messages, and watch results stream in via a durable polling workflow. No client-side streaming - the server polls Anthropic, persists events to Postgres, and the UI fetches transcripts.
+A Next.js 16 web UI for auditing privacy policies against Chilean Law 21.719 (and similar frameworks). Built on Anthropic's Managed Agents API. No login — users are identified by a client-generated anonymous UUID. Submit a policy URL or PDF, and the server runs a durable polling workflow that audits the document, cites the law, and can draft ARCO-rights emails to the company DPO.
 
 ## Quick Reference
 
 - **Package manager**: `pnpm` (do not use npm or yarn)
 - **Framework**: Next.js 16 (App Router, Turbopack)
 - **Database**: Neon PostgreSQL via Drizzle ORM
-- **Auth**: Better Auth with Sign in with Vercel (generic OAuth / OIDC)
+- **Identity**: anonymous client UUID stored in `localStorage["idesify.sessionId"]`, sent as `x-session-id` header
 - **AI**: Anthropic SDK (`@anthropic-ai/sdk`) - beta managed sessions API
 - **Workflows**: [Workflow SDK](https://useworkflow.dev/) for durable event tailing
 - **UI**: shadcn/ui (base-ui primitives) + Tailwind CSS v4
@@ -27,9 +27,9 @@ A Next.js 16 web UI for Anthropic's Managed Agents API. Users sign in with Verce
 | [docs/SPEC.md](docs/SPEC.md) | Product spec: user flows, API contracts, tailing workflow, security model |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Project structure, routing, key directories, end-to-end flow |
 | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | Drizzle schema, migrations, database conventions |
-| [docs/AUTH.md](docs/AUTH.md) | Better Auth setup, Vercel OAuth, session handling, protecting routes |
 | [docs/UI_CONVENTIONS.md](docs/UI_CONVENTIONS.md) | Component patterns, shadcn/base-ui gotchas, layout rules |
 | [docs/streaming-long-running-agents.md](docs/streaming-long-running-agents.md) | Architecture essay: streaming vs persistence patterns for long-running agents |
+| [steps/](steps/) | Per-sprint implementation logs |
 
 ## Key Constraints
 
@@ -50,10 +50,6 @@ A Next.js 16 web UI for Anthropic's Managed Agents API. Users sign in with Verce
 | `ANTHROPIC_API_KEY` | Yes | Anthropic API key for managed sessions |
 | `ANTHROPIC_AGENT_ID` | Yes | Managed agent ID from Anthropic console |
 | `ANTHROPIC_ENVIRONMENT_ID` | Yes | Environment ID for the managed agent |
-| `BETTER_AUTH_SECRET` | Yes | Secret for encrypting sessions / OAuth tokens |
-| `BETTER_AUTH_URL` | Yes | Public origin (e.g. `http://localhost:3000`) |
-| `VERCEL_CLIENT_ID` | For OAuth | Vercel OAuth app client ID |
-| `VERCEL_CLIENT_SECRET` | For OAuth | Vercel OAuth app client secret |
 
 ## Project Structure
 
@@ -63,57 +59,57 @@ app/
   error.tsx               Global error boundary
   not-found.tsx           404 page
   (dashboard)/
-    layout.tsx            Server component: loads viewer + sessions, renders DashboardShell
+    layout.tsx            Renders DashboardShell (no server-side auth)
     page.tsx              Home: centered NewChatComposer
     dashboard-shell.tsx   Client: sidebar toggle, mobile drawer
-    dashboard-sidebar.tsx Client: session list, polling, delete, sign-in/out
+    dashboard-sidebar.tsx Client: session list, polling, delete
     new-chat-composer.tsx Client: create session + send first message
     chat/
       [sessionId]/
         page.tsx          Renders ChatPanel for a session
   api/
-    auth/[...all]/        Better Auth handler (sign-in, OAuth, session)
     managed-agents/
       session/            POST: create session, DELETE: remove session
-      sessions/           GET: list user's sessions
+      sessions/           GET: list sessions for the anon UUID
       message/            POST: send message, start tailing workflow
       transcript/         GET: fetch session events
+    readable/[runId]/     SSE: stream workflow events to the client
   workflows/
     tail-session.ts       Durable workflow: poll Anthropic, persist events
-  auth/
-    error/page.tsx        Custom auth error page
 
 lib/
-  schema.ts               Drizzle schema (Better Auth + managed agent tables)
+  schema.ts               Drizzle schema (single managed_agent_session table)
   db.ts                   Neon client + Drizzle instance
-  auth.ts                 Better Auth config (Vercel OIDC, Drizzle adapter)
-  auth-client.ts          Client-side auth (genericOAuthClient)
-  session.ts              requireUserId() guard for API routes
+  session.ts              requireSessionId() / requireSessionIdFromQuery() — validates x-session-id UUID
+  anonymous-session.ts    Client-side: getAnonSessionId() + apiFetch() that injects x-session-id
   anthropic.ts            Anthropic SDK client factory
-  managed-agents.ts       Session creation + message sending helpers
+  managed-agents.ts       createManagedAgentSession() — uses ANTHROPIC_AGENT_ID/ENVIRONMENT_ID directly
   managed-agent-events.ts Event ID extraction, terminal detection, timestamp parsing
+  rate-limit.ts           Per-anon-session rate limiting
+  pending-message.ts      Tracks in-flight first-message state per chat
+  time.ts                 Time formatting helpers
+  sidebar-context.tsx     Sidebar collapse state context
   utils.ts                cn() utility
 
 components/
   chat/chat-panel.tsx     Transcript UI: polls /transcript, renders messages
-  sign-in-modal.tsx       Dialog with "Continue with Vercel" button
-  user-menu.tsx           User dropdown (name, email, sign out)
   theme-provider.tsx      next-themes wrapper
-  icons.tsx               VercelIcon, AnthropicIcon
+  icons.tsx               AnthropicIcon
   ui/                     shadcn primitives (button, card, dialog, dropdown, etc.)
 ```
 
 ## End-to-End Flow
 
-1. User signs in via Vercel OAuth (Better Auth + generic OAuth plugin)
-2. User types a message in the home composer
-3. `POST /api/managed-agents/session` creates an Anthropic session + DB row
-4. `POST /api/managed-agents/message` sends the message to Anthropic
-5. If not already tailing, the message handler starts `tailSessionWorkflow`
-6. The workflow polls `client.beta.sessions.events.list()` every 10s
-7. New events are inserted into `managed_agent_event` (deduplicated by unique constraint)
-8. The workflow exits when it sees a terminal event (`session.status_idle` with `end_turn`, etc.)
-9. The chat UI polls `GET /api/managed-agents/transcript` to display events
+1. On first visit, the client generates a UUID and stores it in `localStorage["idesify.sessionId"]`
+2. Every API call goes through `apiFetch` which injects `x-session-id: <UUID>`
+3. User types a message in the home composer
+4. `POST /api/managed-agents/session` creates an Anthropic session + DB row (using `ANTHROPIC_AGENT_ID` + `ANTHROPIC_ENVIRONMENT_ID` directly — no per-user vaults)
+5. `POST /api/managed-agents/message` sends the message to Anthropic
+6. If not already tailing, the message handler starts `tailSessionWorkflow`
+7. The workflow polls `client.beta.sessions.events.list()` every 10s
+8. New events are persisted (deduplicated by unique constraint)
+9. The workflow exits when it sees a terminal event (`session.status_idle` with `end_turn`, etc.)
+10. The chat UI polls `GET /api/managed-agents/transcript` to display events
 
 ## Scripts
 
