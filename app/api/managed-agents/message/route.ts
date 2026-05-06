@@ -68,7 +68,37 @@ export async function POST(request: Request) {
       ),
     );
 
-  await messageHook.resume(`msg:${chatId}`, { text });
+  try {
+    await messageHook.resume(`msg:${chatId}`, { text });
+  } catch (e) {
+    // Hook can disappear if the workflow run was garbage-collected (e.g. dev
+    // server restart). The chat is effectively dead — surface a 410 so the UI
+    // can show a useful message rather than a generic 500.
+    const err = e as { name?: string; message?: string };
+    const isMissing =
+      err?.name === "HookNotFoundError" ||
+      err?.name === "WorkflowRunNotFoundError" ||
+      err?.name === "RunExpiredError" ||
+      (typeof err?.message === "string" &&
+        /(hook|run).*not found|expired/i.test(err.message));
+    if (isMissing) {
+      // Clear the stale run pointer so future loads don't re-attempt the SSE.
+      await db
+        .update(managedAgentSession)
+        .set({ workflowRunId: null })
+        .where(
+          and(
+            eq(managedAgentSession.id, chatId),
+            eq(managedAgentSession.sessionId, authz.sessionId),
+          ),
+        );
+      return NextResponse.json(
+        { error: "This audit session has expired. Start a new one." },
+        { status: 410 },
+      );
+    }
+    throw e;
+  }
 
   return NextResponse.json({ ok: true });
 }
