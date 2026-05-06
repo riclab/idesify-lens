@@ -1,18 +1,28 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
-const geistSans = Geist({
+const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -22,9 +32,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Internal Knowledge Agent",
+  title: "Idesify Lens — Privacy policy auditor",
   description:
-    "Ask questions across your internal tools - GitHub, Notion, Slack, and more.",
+    "Audit privacy policies against Chilean Law 21.719, GDPR, and CCPA — with verbatim citations and ARCO-rights drafting.",
 };
 
 export default function RootLayout({
@@ -35,11 +45,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("font-sans", geistSans.variable, geistMono.variable)}
+      className={cn(
+        inter.variable,
+        instrumentSerif.variable,
+        jetbrainsMono.variable,
+      )}
       suppressHydrationWarning
     >
       <body className="antialiased">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <main>{children}</main>
         </ThemeProvider>
         <Analytics />

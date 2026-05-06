@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { ArrowUp, Check, ChevronRight, Loader2, PanelLeft } from "lucide-react";
 import { Streamdown, type Components } from "streamdown";
 import { cn } from "@/lib/utils";
@@ -32,16 +33,16 @@ function textFromContent(content: unknown): string {
   return parts.join("");
 }
 
-/* ---------- Markdown ---------- */
+/* ---------- Markdown (Lens prose) ---------- */
 
 const streamdownComponents: Components = {
   p: ({ children, ...props }) => (
-    <div {...props} className="mb-4 last:mb-0">
+    <p {...props} className="mb-4 last:mb-0">
       {children}
-    </div>
+    </p>
   ),
   ol: ({ children, ...props }) => (
-    <ol {...props} className="mb-4 list-decimal space-y-2 pl-6 last:mb-0">
+    <ol {...props} className="mb-4 list-decimal space-y-1.5 pl-6 last:mb-0">
       {children}
     </ol>
   ),
@@ -55,23 +56,15 @@ const streamdownComponents: Components = {
       {children}
     </li>
   ),
-  pre: ({ children, ...props }) => (
-    <pre {...props} className="mb-4 overflow-x-auto rounded-lg bg-muted/50 p-4 font-mono text-sm last:mb-0">
-      {children}
-    </pre>
-  ),
-  code: ({ children, ...props }) => (
-    <code {...props} className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[13px]">
-      {children}
-    </code>
-  ),
 };
 
 function Markdown({ text }: { text: string }) {
   return (
-    <Streamdown components={streamdownComponents} linkSafety={{ enabled: false }}>
-      {text}
-    </Streamdown>
+    <div className="lens-prose">
+      <Streamdown components={streamdownComponents} linkSafety={{ enabled: false }}>
+        {text}
+      </Streamdown>
+    </div>
   );
 }
 
@@ -83,37 +76,20 @@ function resolveToolName(ev: TranscriptEvent): string {
   return ev.type.replace("agent.", "").toLowerCase() || "tool";
 }
 
-function mcpServerFromName(name: string): string | null {
-  if (name.startsWith("notion__") || name.startsWith("notion_")) return "notion";
-  if (name.startsWith("github__") || name.startsWith("github_")) return "github";
-  if (name.startsWith("slack__") || name.startsWith("slack_")) return "slack";
-  return null;
-}
-
 function toolCategory(name: string): string {
-  const server = mcpServerFromName(name);
-  if (server) return server;
   switch (name) {
-    case "bash":
-    case "shell":
-      return "ran";
-    case "edit":
-      return "edited";
-    case "write":
-      return "wrote";
-    case "read":
-      return "read";
-    case "grep":
-    case "rg":
-    case "glob":
-    case "list":
-    case "web_search":
-      return "searched";
+    case "read_url":
     case "webfetch":
     case "web_fetch":
       return "fetched";
-    case "task":
-      return "other";
+    case "search_policy_url":
+    case "web_search":
+    case "search":
+      return "searched";
+    case "search_dpo_contact":
+      return "dpo";
+    case "draft_legal_email":
+      return "drafted";
     default:
       return "other";
   }
@@ -126,53 +102,34 @@ function summarizeToolGroup(tools: TranscriptEvent[]): string {
     counts.set(cat, (counts.get(cat) ?? 0) + 1);
   }
 
-  const order: [string, string, string, string][] = [
-    ["notion", "Used Notion", "time", "times"],
-    ["github", "Used GitHub", "time", "times"],
-    ["slack", "Used Slack", "time", "times"],
-    ["ran", "Ran", "command", "commands"],
-    ["edited", "Edited", "file", "files"],
-    ["wrote", "Wrote", "file", "files"],
-    ["read", "Read", "file", "files"],
-    ["searched", "Searched", "pattern", "patterns"],
-    ["fetched", "Fetched", "URL", "URLs"],
-    ["other", "Ran", "action", "actions"],
+  const order: [string, string, string][] = [
+    ["fetched", "Read", "URLs"],
+    ["searched", "Searched", "queries"],
+    ["dpo", "Looked up DPO contact", "DPO contacts"],
+    ["drafted", "Drafted", "drafts"],
+    ["other", "Ran", "actions"],
   ];
 
   const parts: string[] = [];
-  for (const [key, verb, singular, plural] of order) {
+  for (const [key, verb, plural] of order) {
     const n = counts.get(key);
     if (!n) continue;
     parts.push(n === 1 ? verb : `${verb} ${n} ${plural}`);
   }
 
-  return parts.join(", ") || `${tools.length} tool calls`;
-}
-
-function humanToolName(name: string): string {
-  const server = mcpServerFromName(name);
-  if (server) return name.replace(/^[^_]+__?/, "");
-  return name;
+  return parts.join(" · ") || `${tools.length} steps`;
 }
 
 function describeToolAction(name: string, input: unknown): string {
   if (!input || typeof input !== "object") return "";
   const obj = input as Record<string, unknown>;
-  if (name === "bash" || name === "shell") {
-    const cmd = typeof obj.command === "string" ? obj.command : "";
-    return cmd.length > 60 ? cmd.slice(0, 60) + "..." : cmd;
-  }
-  if (name === "read" || name === "write" || name === "edit") {
-    return typeof obj.path === "string" ? obj.path : typeof obj.file_path === "string" ? obj.file_path : "";
-  }
-  if (name === "grep" || name === "rg") {
-    return typeof obj.pattern === "string" ? obj.pattern : "";
-  }
-  const server = mcpServerFromName(name);
-  if (server) {
-    const action = name.replace(/^[^_]+__?/, "").replace(/_/g, " ");
-    return action || "";
-  }
+  if (name === "read_url") return typeof obj.url === "string" ? obj.url : "";
+  if (name === "search_policy_url" || name === "web_search" || name === "search")
+    return typeof obj.query === "string" ? obj.query : "";
+  if (name === "search_dpo_contact")
+    return typeof obj.company === "string" ? obj.company : "";
+  if (name === "draft_legal_email")
+    return typeof obj.subject === "string" ? obj.subject : "";
   return "";
 }
 
@@ -180,31 +137,55 @@ function ToolCallItem({ ev }: { ev: TranscriptEvent }) {
   const [expanded, setExpanded] = useState(false);
   const rawName = resolveToolName(ev);
   const input = ev.payload.input;
-  const displayName = humanToolName(rawName);
   const label = describeToolAction(rawName, input);
-  const hasDetail = Boolean(input && typeof input === "object" && Object.keys(input as object).length > 0);
+  const hasDetail =
+    Boolean(input && typeof input === "object" && Object.keys(input as object).length > 0);
 
   return (
     <div className="py-0.5">
       <button
         type="button"
         className={cn(
-          "flex w-full items-center gap-2 py-0.5 text-left text-xs text-muted-foreground transition-colors",
-          hasDetail ? "cursor-pointer hover:text-foreground" : "cursor-default",
+          "flex w-full items-center gap-2 py-0.5 text-left text-[13px]",
+          hasDetail ? "cursor-pointer" : "cursor-default",
         )}
+        style={{ color: "var(--muted-foreground)" }}
         onClick={() => hasDetail && setExpanded((v) => !v)}
       >
-        <Check className="size-3 shrink-0 text-muted-foreground" />
-        <span className="shrink-0 rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px]">
-          {displayName}
+        <Check
+          className="size-3 shrink-0"
+          style={{ color: "var(--green)" }}
+        />
+        <span className="lens-cite shrink-0" style={{ fontSize: 11 }}>
+          {rawName}
         </span>
-        {label && <span className="truncate text-foreground/80">{label}</span>}
+        {label && (
+          <span
+            className="truncate"
+            style={{ color: "var(--ink-2)" }}
+          >
+            {label}
+          </span>
+        )}
         {hasDetail && (
-          <ChevronRight className={cn("ml-auto size-3 shrink-0 transition-transform", expanded && "rotate-90")} />
+          <ChevronRight
+            className={cn(
+              "ml-auto size-3 shrink-0 transition-transform",
+              expanded && "rotate-90",
+            )}
+          />
         )}
       </button>
       {expanded && (
-        <pre className="ml-5 mt-1 mb-1 max-h-48 overflow-auto rounded-lg bg-muted/40 p-3 font-mono text-[11px] text-muted-foreground">
+        <pre
+          className="mt-1 mb-1 ml-5 max-h-48 overflow-auto rounded-[10px] p-3 text-[11px]"
+          style={{
+            background: "var(--background)",
+            border: "1px solid var(--border)",
+            color: "var(--muted-foreground)",
+            fontFamily: "var(--font-mono), ui-monospace, monospace",
+          }}
+        >
           {JSON.stringify(input, null, 2)}
         </pre>
       )}
@@ -221,18 +202,25 @@ function ToolGroup({ tools }: { tools: TranscriptEvent[] }) {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="group flex cursor-pointer items-center gap-1.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        className="group flex cursor-pointer items-center gap-2 py-1 text-[13px] transition-colors"
+        style={{ color: "var(--muted-foreground)" }}
       >
-        <span>{label}</span>
+        <span className="lens-cite" style={{ fontSize: 11 }}>
+          {tools.length} step{tools.length === 1 ? "" : "s"}
+        </span>
+        <span style={{ color: "var(--ink-2)" }}>{label}</span>
         <ChevronRight
           className={cn(
             "size-3 shrink-0 transition-all",
-            expanded ? "rotate-90 opacity-100" : "opacity-0 group-hover:opacity-100",
+            expanded ? "rotate-90 opacity-100" : "opacity-50",
           )}
         />
       </button>
       {expanded && (
-        <div className="ml-1.5 border-l border-border/40 pl-2 pt-0.5 pb-1">
+        <div
+          className="ml-3 pl-3 pt-1 pb-1"
+          style={{ borderLeft: "1px solid var(--border)" }}
+        >
           {tools.map((ev) => (
             <ToolCallItem key={ev.id} ev={ev} />
           ))}
@@ -242,11 +230,49 @@ function ToolGroup({ tools }: { tools: TranscriptEvent[] }) {
   );
 }
 
-/* ---------- Transcript renderer (flush-based, merges tools between user messages) ---------- */
+/* ---------- Transcript renderer ---------- */
 
 type EventGroup =
   | { kind: "event"; event: TranscriptEvent }
   | { kind: "tools"; events: TranscriptEvent[] };
+
+function UserMessage({ text }: { text: string }) {
+  return (
+    <div className="flex justify-end">
+      <div className="lens-panel max-w-[80%]" style={{ borderRadius: 18 }}>
+        <div
+          className="px-4 py-3"
+          style={{
+            fontSize: 15,
+            lineHeight: 1.55,
+            color: "var(--foreground)",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {text || "(empty)"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssistantMessage({ text }: { text: string }) {
+  return (
+    <div
+      className="lens-panel"
+      style={{ borderRadius: 18, padding: "18px 20px" }}
+    >
+      <div
+        className="mb-3 flex items-center gap-2 text-[11.5px] uppercase tracking-[0.08em]"
+        style={{ color: "var(--muted-foreground)", fontWeight: 500 }}
+      >
+        <span className="brand-dot" style={{ width: 12, height: 12 }} />
+        Lens
+      </div>
+      <Markdown text={text} />
+    </div>
+  );
+}
 
 function TranscriptRenderer({ grouped }: { grouped: EventGroup[] }) {
   return (
@@ -259,34 +285,36 @@ function TranscriptRenderer({ grouped }: { grouped: EventGroup[] }) {
         const { type, payload } = ev;
 
         if (type === "user.message") {
-          const msg = textFromContent(payload.content);
-          return (
-            <div key={ev.id} className="flex justify-end">
-              <div className="max-w-[80%]">
-                <div className="rounded-2xl bg-muted/70 px-4 py-2.5 text-[15px] leading-relaxed">
-                  <div className="whitespace-pre-wrap">{msg || "(empty)"}</div>
-                </div>
-              </div>
-            </div>
-          );
+          return <UserMessage key={ev.id} text={textFromContent(payload.content)} />;
         }
 
         if (type === "agent.message") {
           const msg = textFromContent(payload.content);
           if (!msg) return null;
-          return (
-            <div key={ev.id} className="max-w-none overflow-x-auto text-[15px] leading-relaxed text-foreground/85">
-              <Markdown text={msg} />
-            </div>
-          );
+          return <AssistantMessage key={ev.id} text={msg} />;
         }
 
         if (type === "session.status_idle") {
           return (
-            <div key={ev.id} className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-              <p className="text-xs font-medium text-amber-500">Requires action</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                This session needs confirmation in the Anthropic console.
+            <div
+              key={ev.id}
+              className="lens-panel px-4 py-3"
+              style={{
+                borderColor: "var(--amber)",
+                background: "hsl(39 71% 41% / 0.06)",
+              }}
+            >
+              <p
+                className="text-[12.5px] font-medium uppercase tracking-[0.08em]"
+                style={{ color: "var(--amber)" }}
+              >
+                Requires action
+              </p>
+              <p
+                className="mt-1 text-[13px]"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                This audit needs confirmation in the Anthropic console.
               </p>
             </div>
           );
@@ -304,17 +332,27 @@ function ChatSkeleton() {
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-6 py-6">
       <div className="flex justify-end">
-        <div className="h-10 w-48 animate-pulse rounded-lg bg-muted/30" />
+        <div
+          className="h-10 w-48 animate-pulse rounded-[18px]"
+          style={{ background: "var(--secondary)" }}
+        />
       </div>
-      <div className="space-y-2">
-        <div className="h-4 w-3/4 animate-pulse rounded bg-muted/25" />
-        <div className="h-4 w-1/2 animate-pulse rounded bg-muted/25" />
-      </div>
-      <div className="h-3 w-36 animate-pulse rounded bg-muted/20" />
-      <div className="space-y-2">
-        <div className="h-4 w-5/6 animate-pulse rounded bg-muted/25" />
-        <div className="h-4 w-2/3 animate-pulse rounded bg-muted/25" />
-        <div className="h-4 w-3/4 animate-pulse rounded bg-muted/25" />
+      <div
+        className="space-y-2 rounded-[18px] p-5"
+        style={{ background: "var(--secondary)", opacity: 0.6 }}
+      >
+        <div
+          className="h-4 w-3/4 animate-pulse rounded"
+          style={{ background: "var(--border)" }}
+        />
+        <div
+          className="h-4 w-1/2 animate-pulse rounded"
+          style={{ background: "var(--border)" }}
+        />
+        <div
+          className="h-4 w-2/3 animate-pulse rounded"
+          style={{ background: "var(--border)" }}
+        />
       </div>
     </div>
   );
@@ -465,8 +503,14 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
     };
 
     es.onerror = () => {
+      // Browser EventSource fires `error` for both transient blips and terminal
+      // closes (e.g. server returned 410 Gone because the workflow run was
+      // garbage-collected). After close() readyState is CLOSED — there will be
+      // no further reconnects, so it's safe to stop tailing.
       es.close();
       eventSourceRef.current = null;
+      runIdRef.current = null;
+      setTailing(false);
     };
   }
 
@@ -561,63 +605,109 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
     }
   }
 
-  const grouped = groupEvents(events);
+  const grouped = useMemo(() => groupEvents(events), [events]);
 
   const lastUserIdx = events.findLastIndex((e) => e.type === "user.message");
-  const agentDoneAfterLastMsg = lastUserIdx >= 0 && events.slice(lastUserIdx + 1).some((ev) => {
-    if (ev.type === "session.status_terminated" || ev.type === "session.deleted") return true;
-    if (ev.type === "session.status_idle") {
-      const sr = (ev.payload as { stop_reason?: { type?: string } }).stop_reason;
-      return sr?.type === "end_turn" || sr?.type === "retries_exhausted";
-    }
-    return false;
-  });
+  const agentDoneAfterLastMsg =
+    lastUserIdx >= 0 &&
+    events.slice(lastUserIdx + 1).some((ev) => {
+      if (
+        ev.type === "session.status_terminated" ||
+        ev.type === "session.deleted"
+      )
+        return true;
+      if (ev.type === "session.status_idle") {
+        const sr = (ev.payload as { stop_reason?: { type?: string } })
+          .stop_reason;
+        return sr?.type === "end_turn" || sr?.type === "retries_exhausted";
+      }
+      return false;
+    });
 
   const isActive = (tailing || sending) && !agentDoneAfterLastMsg;
   const showThinking = isActive && lastUserIdx >= 0;
 
+  const displayTitle =
+    title && title !== "New chat" ? title : "New audit";
+
   return (
     <div className="flex h-full min-h-0">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex items-center gap-2 border-b border-border/50 py-3 px-4 md:px-6">
-          {!sidebar.open && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="hidden shrink-0 md:flex"
-              onClick={sidebar.toggle}
-              aria-label="Open sidebar"
-            >
-              <PanelLeft className="size-4" />
-            </Button>
-          )}
-          <div className="min-w-0 flex-1">
-            {loading ? (
-              <div className="h-5 w-48 animate-pulse rounded bg-muted/40" />
-            ) : (
-              <h1 className="truncate text-sm font-medium text-muted-foreground">
-                {title && title !== "New chat" ? title : "New question"}
-              </h1>
-            )}
+        {/* Header */}
+        <div className="px-6 pt-5 pb-4 md:px-10">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="lens-crumbs">
+                {!sidebar.open && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="-ml-2 hidden shrink-0 md:flex"
+                    onClick={sidebar.toggle}
+                    aria-label="Open sidebar"
+                  >
+                    <PanelLeft className="size-4" />
+                  </Button>
+                )}
+                <Link href="/">Lens</Link>
+                <span className="sep">/</span>
+                <span>Audits</span>
+                <span className="sep">/</span>
+                <span style={{ color: "var(--ink-2)" }}>
+                  {loading ? "…" : displayTitle.length > 40 ? `${displayTitle.slice(0, 40)}…` : displayTitle}
+                </span>
+              </div>
+              {loading ? (
+                <div
+                  className="mt-2 h-12 w-3/4 animate-pulse rounded"
+                  style={{ background: "var(--secondary)" }}
+                />
+              ) : (
+                <h1 className="lens-title mt-1 truncate">{displayTitle}</h1>
+              )}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="lens-meta-pill">
+                  <span className="dot" />
+                  CL · Ley 21.719
+                </span>
+                <span className={cn("lens-meta-pill", isActive && "live")}>
+                  <span className="dot" />
+                  {isActive ? "auditing" : "idle"}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <div
+          ref={scrollRef}
+          className="min-h-0 flex-1 overflow-y-auto px-6 md:px-10"
+          style={{ borderTop: "1px solid var(--border)" }}
+        >
           {loading && !pending ? (
             <ChatSkeleton />
           ) : (
-            <div className="mx-auto max-w-3xl space-y-2 pb-40">
+            <div className="mx-auto max-w-3xl space-y-3 py-6 pb-44">
               {error && (
-                <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-900/20">
-                  <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+                <div
+                  className="lens-panel px-4 py-3"
+                  style={{
+                    borderColor: "var(--red)",
+                    background: "hsl(0 51% 47% / 0.06)",
+                  }}
+                >
+                  <p className="text-sm" style={{ color: "var(--red)" }}>
+                    {error}
+                  </p>
                 </div>
               )}
               <TranscriptRenderer grouped={grouped} />
               {showThinking && (
-                <div className="pt-3" role="status" aria-live="polite">
-                  <div className="py-1 text-sm font-medium shimmer-text">
-                    Thinking...
-                  </div>
+                <div className="pt-2" role="status" aria-live="polite">
+                  <span className="live-pill">
+                    <span className="live-dot" />
+                    <span style={{ color: "var(--ink-2)" }}>Thinking…</span>
+                  </span>
                 </div>
               )}
               <div ref={bottomRef} />
@@ -625,9 +715,17 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
           )}
         </div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-background from-55% to-transparent px-4 pb-4 pt-10">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 px-6 pb-5 pt-12 md:px-10">
+          <div
+            className="absolute inset-0 -z-10"
+            style={{
+              background:
+                "linear-gradient(to top, var(--background) 60%, transparent)",
+            }}
+            aria-hidden
+          />
           <div className="pointer-events-auto mx-auto max-w-3xl">
-            <div className="rounded-2xl border border-border/60 bg-background/95 shadow-lg backdrop-blur transition-shadow focus-within:border-border focus-within:shadow-xl">
+            <div className="lens-search">
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -637,38 +735,37 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                     void handleSend();
                   }
                 }}
-                placeholder="Explore a topic..."
+                placeholder="Ask a follow-up…"
                 rows={1}
                 disabled={sending || isActive}
-                className="max-h-[200px] min-h-[44px] w-full resize-none bg-transparent px-5 pt-3.5 pb-1 text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
+                className="lens-search-input"
                 style={{ height: "auto", overflow: "hidden" }}
                 onInput={(e) => {
                   const el = e.currentTarget;
                   el.style.height = "auto";
                   el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-                  el.style.overflow = el.scrollHeight > 200 ? "auto" : "hidden";
+                  el.style.overflow =
+                    el.scrollHeight > 200 ? "auto" : "hidden";
                 }}
               />
-              <div className="flex items-center justify-end px-4 py-2.5">
-                <button
-                  type="button"
-                  aria-label="Send message"
-                  onClick={() => void handleSend()}
-                  disabled={sending || !text.trim()}
-                  className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-30"
-                >
-                  {sending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <ArrowUp className="size-4" />
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                aria-label="Send message"
+                onClick={() => void handleSend()}
+                disabled={sending || !text.trim() || isActive}
+                className="lens-audit-btn"
+                style={{ padding: "10px 14px" }}
+              >
+                {sending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ArrowUp className="size-4" />
+                )}
+              </button>
             </div>
           </div>
         </div>
       </div>
-
     </div>
   );
 }

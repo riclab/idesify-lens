@@ -11,7 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { VercelIcon } from "@/components/icons";
 import { apiFetch } from "@/lib/anonymous-session";
 import { cn } from "@/lib/utils";
 
@@ -26,12 +25,12 @@ function formatTimeAgo(dateStr: string): string {
   const then = new Date(dateStr).getTime();
   const diffMs = now - then;
   const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return `${days}d`;
   return new Date(dateStr).toLocaleDateString();
 }
 
@@ -94,92 +93,137 @@ export function DashboardSidebar({
   return (
     <aside
       className={cn(
-        "flex h-full w-64 shrink-0 flex-col border-r border-border bg-background",
+        "flex h-full w-64 shrink-0 flex-col gap-3 p-3",
         className,
       )}
     >
-      <div className="flex flex-col gap-1 px-2 pt-2 pb-1">
-        <div className="flex items-center justify-between px-2 py-1">
-          <Link
-            href="/"
-            className="flex items-center"
-            onClick={onNavigate}
-            aria-label="Home"
-          >
-            <VercelIcon className="size-4" />
-          </Link>
-          {onToggleSidebar && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Close sidebar"
-              onClick={onToggleSidebar}
-              className="cursor-pointer"
-            >
-              <PanelLeft className="size-4" />
-            </Button>
-          )}
-        </div>
+      <div className="flex items-center justify-between px-1">
         <Link
           href="/"
           onClick={onNavigate}
-          className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground"
+          aria-label="Idesify Lens — home"
+          className="flex items-center gap-2"
         >
-          <Plus className="size-4" />
-          New question
+          <span className="brand-dot" />
+          <span
+            className="text-[16px] font-medium tracking-tight"
+            style={{ letterSpacing: "-0.01em" }}
+          >
+            Lens
+          </span>
         </Link>
+        {onToggleSidebar && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Close sidebar"
+            onClick={onToggleSidebar}
+            className="cursor-pointer"
+          >
+            <PanelLeft className="size-4" />
+          </Button>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 py-2">
-        {sessionItems.map((session) => {
-          const active = selectedSessionId === session.id;
-          return (
-            <div
-              key={session.id}
-              className={cn(
-                "group/session relative mb-0.5 rounded-lg transition-colors",
-                active
-                  ? "bg-primary/10 text-foreground"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-              )}
+      <Link
+        href="/"
+        onClick={onNavigate}
+        className="flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-[13.5px] transition-colors"
+        style={{
+          background: "var(--card)",
+          borderColor: "var(--border)",
+          color: "var(--ink-2)",
+        }}
+      >
+        <Plus className="size-4" />
+        <span>New audit</span>
+      </Link>
+
+      <div
+        className="lens-panel flex min-h-0 flex-1 flex-col"
+        style={{ borderRadius: 18 }}
+      >
+        <div className="lens-panel-head" style={{ padding: "12px 16px" }}>
+          <span className="ttl">Recent audits</span>
+          {sessionItems.length > 0 && (
+            <span
+              className="font-mono text-[11px]"
+              style={{ color: "var(--muted-2)" }}
             >
-              <Link
-                href={`/chat/${session.id}`}
-                onClick={onNavigate}
-                className="block px-2 py-1.5 pr-8 text-sm"
-              >
-                <div className="truncate text-sm font-medium">
-                  {session.title || "Untitled"}
-                </div>
-                <div
-                  className="truncate text-[11px] text-muted-foreground"
-                  suppressHydrationWarning
-                >
-                  {formatTimeAgo(session.updatedAt)}
-                </div>
-              </Link>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  className="absolute right-1 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-1 opacity-0 transition-opacity hover:bg-muted group-hover/session:opacity-100 data-[popup-open]:opacity-100"
-                  aria-label="Session options"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Ellipsis className="size-3.5" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" side="bottom">
-                  <DropdownMenuItem
-                    className="cursor-pointer text-red-500"
-                    onClick={() => void deleteSession(session.id)}
-                  >
-                    <Trash2 className="size-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {sessionItems.length}
+            </span>
+          )}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+          {sessionItems.length === 0 && (
+            <div
+              className="px-2 py-3 text-[12.5px]"
+              style={{ color: "var(--muted-2)" }}
+            >
+              No audits yet.
             </div>
-          );
-        })}
+          )}
+          {sessionItems.map((session) => {
+            const active = selectedSessionId === session.id;
+            return (
+              <div
+                key={session.id}
+                className={cn("group/session relative")}
+              >
+                <Link
+                  href={`/chat/${session.id}`}
+                  onClick={onNavigate}
+                  className="lens-step block pr-8"
+                  style={{
+                    background: active ? "var(--secondary)" : "transparent",
+                    color: active ? "var(--foreground)" : "var(--ink-2)",
+                  }}
+                >
+                  <span
+                    className="ic"
+                    aria-hidden
+                    style={{
+                      background: active ? "var(--accent-deep)" : "var(--card)",
+                      border: active
+                        ? "none"
+                        : "1px solid var(--border)",
+                    }}
+                  />
+                  <span className="t truncate">
+                    {session.title || "Untitled audit"}
+                  </span>
+                  <span
+                    className="ms"
+                    suppressHydrationWarning
+                  >
+                    {formatTimeAgo(session.updatedAt)}
+                  </span>
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className="absolute right-1 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-1 opacity-0 transition-opacity hover:bg-secondary group-hover/session:opacity-100 data-[popup-open]:opacity-100"
+                    aria-label="Session options"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Ellipsis className="size-3.5" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="bottom">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      style={{ color: "var(--red)" }}
+                      onClick={() => void deleteSession(session.id)}
+                    >
+                      <Trash2 className="size-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </aside>
   );
