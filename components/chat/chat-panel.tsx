@@ -729,23 +729,13 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
               >
                 Transcript
               </span>
-              {hasReport ? (
-                <Link
-                  href={`/chat/${sessionId}/report`}
-                  className="cursor-pointer rounded-full px-3 py-1.5 text-[12.5px] transition-colors hover:bg-secondary"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  Report
-                </Link>
-              ) : (
-                <span
-                  className="cursor-default rounded-full px-3 py-1.5 text-[12.5px]"
-                  style={{ color: "var(--muted-2)" }}
-                  title="Available once the audit completes"
-                >
-                  Report
-                </span>
-              )}
+              <Link
+                href={`/chat/${sessionId}/report`}
+                className="cursor-pointer rounded-full px-3 py-1.5 text-[12.5px] transition-colors hover:bg-secondary"
+                style={{ color: hasReport ? "var(--ink-2)" : "var(--muted-foreground)" }}
+              >
+                Report
+              </Link>
             </div>
           </div>
         </div>
