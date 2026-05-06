@@ -1,8 +1,10 @@
 import { defineHook, sleep, getWritable } from "workflow";
 import { getAnthropic } from "@/lib/anthropic";
 import { anthropicEventId } from "@/lib/managed-agent-events";
+import { executeIngestionTool } from "@/lib/ingestion-tools";
 
 const MAX_POLLS_PER_TURN = 200;
+const MAX_TOOL_ROUNDS = 10;
 const POLL_INTERVAL = "3s";
 
 export type SessionEvent = {
@@ -29,17 +31,24 @@ async function sendMessage(
   console.log(`[sendMessage] DONE`);
 }
 
+type PollResult = {
+  lastEventId: string | null;
+  status: "continue" | "end_turn" | "requires_action";
+  toolUseEventIds: string[];
+};
+
 async function pollAndStream(input: {
   anthropicSessionId: string;
   lastEventId: string | null;
-}): Promise<{ lastEventId: string | null; done: boolean }> {
+}): Promise<PollResult> {
   "use step";
   console.log(`[pollAndStream] START session=${input.anthropicSessionId} lastEventId=${input.lastEventId}`);
 
   const client = getAnthropic();
   const writer = getWritable<SessionEvent>().getWriter();
 
-  let done = false;
+  let status: PollResult["status"] = "continue";
+  let toolUseEventIds: string[] = [];
   let lastId = input.lastEventId;
   let written = 0;
 
@@ -78,12 +87,22 @@ async function pollAndStream(input: {
       written++;
       lastId = aid;
 
+      if (event.type === "session.status_idle") {
+        const stopReason = (event as { stop_reason?: { type?: string; event_ids?: string[] } }).stop_reason;
+        if (stopReason?.type === "requires_action") {
+          status = "requires_action";
+          toolUseEventIds = stopReason.event_ids ?? [];
+        } else {
+          status = "end_turn";
+        }
+        break;
+      }
+
       if (
-        event.type === "session.status_idle" ||
         event.type === "session.status_terminated" ||
         event.type === "session.deleted"
       ) {
-        done = true;
+        status = "end_turn";
         break;
       }
     }
@@ -91,8 +110,58 @@ async function pollAndStream(input: {
     writer.releaseLock();
   }
 
-  console.log(`[pollAndStream] DONE wrote=${written} lastId=${lastId} done=${done}`);
-  return { lastEventId: lastId, done };
+  console.log(`[pollAndStream] DONE wrote=${written} lastId=${lastId} status=${status} toolEvents=${toolUseEventIds.length}`);
+  return { lastEventId: lastId, status, toolUseEventIds };
+}
+
+async function runToolsAndReply(input: {
+  anthropicSessionId: string;
+  toolUseEventIds: string[];
+}): Promise<void> {
+  "use step";
+  console.log(`[runTools] START session=${input.anthropicSessionId} ids=${input.toolUseEventIds.join(",")}`);
+
+  if (input.toolUseEventIds.length === 0) return;
+
+  const client = getAnthropic();
+
+  const page = await client.beta.sessions.events.list(
+    input.anthropicSessionId,
+    { limit: 100 },
+  );
+
+  const idSet = new Set(input.toolUseEventIds);
+  const calls: Array<{ id: string; name: string; toolInput: Record<string, unknown> }> = [];
+
+  for (const ev of page.data) {
+    if (ev.type !== "agent.custom_tool_use") continue;
+    const id = anthropicEventId(ev);
+    if (!id || !idSet.has(id)) continue;
+    const cast = ev as unknown as {
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+    };
+    calls.push({ id: cast.id, name: cast.name, toolInput: cast.input });
+  }
+
+  console.log(`[runTools] resolved ${calls.length}/${input.toolUseEventIds.length} tool calls`);
+
+  for (const call of calls) {
+    console.log(`[runTools] executing ${call.name} (${call.id})`);
+    const result = await executeIngestionTool(call.name, call.toolInput);
+    await client.beta.sessions.events.send(input.anthropicSessionId, {
+      events: [
+        {
+          type: "user.custom_tool_result",
+          custom_tool_use_id: call.id,
+          content: [{ type: "text", text: result.text }],
+          is_error: result.isError,
+        },
+      ],
+    });
+    console.log(`[runTools] sent result for ${call.id} (isError=${result.isError})`);
+  }
 }
 
 async function processTurn(
@@ -103,6 +172,8 @@ async function processTurn(
   await sendMessage(anthropicSessionId, text);
 
   let currentLastEventId = lastEventId;
+  let toolRounds = 0;
+
   for (let i = 0; i < MAX_POLLS_PER_TURN; i++) {
     await sleep(POLL_INTERVAL);
 
@@ -113,9 +184,21 @@ async function processTurn(
 
     currentLastEventId = result.lastEventId;
 
-    if (result.done) {
+    if (result.status === "end_turn") {
       console.log(`[sessionWorkflow] turn complete after ${i + 1} polls`);
       break;
+    }
+
+    if (result.status === "requires_action") {
+      if (toolRounds >= MAX_TOOL_ROUNDS) {
+        console.warn(`[sessionWorkflow] hit MAX_TOOL_ROUNDS=${MAX_TOOL_ROUNDS}, ending turn`);
+        break;
+      }
+      toolRounds++;
+      await runToolsAndReply({
+        anthropicSessionId,
+        toolUseEventIds: result.toolUseEventIds,
+      });
     }
   }
   return currentLastEventId;
@@ -125,9 +208,10 @@ export async function sessionWorkflow(input: {
   internalSessionId: string;
   anthropicSessionId: string;
   initialMessage: string;
+  jurisdiction?: string;
 }) {
   "use workflow";
-  console.log(`[sessionWorkflow] START internal=${input.internalSessionId} anthropic=${input.anthropicSessionId}`);
+  console.log(`[sessionWorkflow] START internal=${input.internalSessionId} anthropic=${input.anthropicSessionId} jurisdiction=${input.jurisdiction ?? "cl"}`);
 
   let lastEventId: string | null = null;
 

@@ -5,6 +5,7 @@ import { start } from "workflow/api";
 import { db } from "@/lib/db";
 import { managedAgentSession } from "@/lib/schema";
 import { createManagedAgentSession } from "@/lib/managed-agents";
+import { DEFAULT_JURISDICTION, isJurisdiction } from "@/lib/laws";
 import { requireSessionId } from "@/lib/session";
 import { sessionWorkflow } from "@/app/workflows/tail-session";
 
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
   const authz = await requireSessionId();
   if ("error" in authz) return authz.error;
 
-  let body: { text?: string };
+  let body: { text?: string; jurisdiction?: string };
   try {
     body = await request.json();
   } catch {
@@ -27,12 +28,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
   }
 
+  const jurisdiction = isJurisdiction(body.jurisdiction)
+    ? body.jurisdiction
+    : DEFAULT_JURISDICTION;
+
   const id = crypto.randomUUID();
   const title = text.length > 60 ? `${text.slice(0, 57)}...` : text;
 
   let anthropic;
   try {
-    anthropic = await createManagedAgentSession();
+    anthropic = await createManagedAgentSession(jurisdiction);
   } catch (e) {
     const message =
       e instanceof Error ? e.message : "Failed to create session";
@@ -44,6 +49,7 @@ export async function POST(request: NextRequest) {
       internalSessionId: id,
       anthropicSessionId: anthropic.anthropicSessionId,
       initialMessage: text,
+      jurisdiction,
     },
   ]);
 
@@ -54,6 +60,7 @@ export async function POST(request: NextRequest) {
     title,
     agentId: anthropic.agentId,
     environmentId: anthropic.environmentId,
+    jurisdiction,
     workflowRunId: run.runId,
   });
 

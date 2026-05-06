@@ -8,6 +8,7 @@ import {
   Code,
   FileText,
   Loader2,
+  Scale,
   Search,
   Sparkles,
   Zap,
@@ -15,6 +16,13 @@ import {
 import { GitHubIcon } from "@/components/icons";
 import { setPendingMessage } from "@/lib/pending-message";
 import { apiFetch } from "@/lib/anonymous-session";
+
+const JURISDICTIONS = [
+  { id: "cl", label: "Chile — Ley 21.719" },
+  { id: "eu", label: "EU — GDPR" },
+  { id: "us-ca", label: "California — CCPA" },
+] as const;
+type JurisdictionId = (typeof JURISDICTIONS)[number]["id"];
 
 const HEADING_PROMPTS = [
   "Audit a privacy policy",
@@ -37,6 +45,7 @@ export function NewChatComposer() {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [prompt, setPrompt] = useState("");
+  const [jurisdiction, setJurisdiction] = useState<JurisdictionId>("cl");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [headingIndex, setHeadingIndex] = useState(0);
@@ -59,7 +68,7 @@ export function NewChatComposer() {
         const trimmed = message.trim();
         const res = await apiFetch("/api/managed-agents/session", {
           method: "POST",
-          body: JSON.stringify({ text: trimmed }),
+          body: JSON.stringify({ text: trimmed, jurisdiction }),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -80,7 +89,7 @@ export function NewChatComposer() {
         setCreating(false);
       }
     },
-    [prompt, router],
+    [prompt, jurisdiction, router],
   );
 
   const onKeyDown = useCallback(
@@ -124,7 +133,23 @@ export function NewChatComposer() {
             className="max-h-[160px] min-h-[72px] w-full resize-none bg-transparent px-5 pt-4 pb-2 text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
           />
 
-          <div className="flex items-center justify-end px-4 py-2.5">
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 pl-2.5 pr-1 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-foreground">
+              <Scale className="size-3.5" />
+              <span className="sr-only">Jurisdiction</span>
+              <select
+                value={jurisdiction}
+                onChange={(e) => setJurisdiction(e.target.value as JurisdictionId)}
+                disabled={creating}
+                className="cursor-pointer appearance-none bg-transparent pr-2 outline-none disabled:opacity-50"
+              >
+                {JURISDICTIONS.map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button
               type="submit"
               aria-label="Send message"

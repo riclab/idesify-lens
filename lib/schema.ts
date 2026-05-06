@@ -10,5 +10,6 @@ export const managedAgentSession = pgTable("managed_agent_session", {
     .defaultNow(),
   agentId: text("agent_id").notNull(),
   environmentId: text("environment_id").notNull(),
+  jurisdiction: text("jurisdiction").notNull().default("cl"),
   workflowRunId: text("workflow_run_id"),
 });

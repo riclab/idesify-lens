@@ -24,14 +24,23 @@ We do not want users to connect personal MCP accounts (like their own GitHub). W
   2. In `app/api/managed-agents/session/route.ts`, remove the logic that creates Vaults and syncs MCP credentials.
   3. Update `lib/managed-agents.ts`: Ensure `createSession` just uses `process.env.ANTHROPIC_AGENT_ID` and `process.env.ANTHROPIC_ENVIRONMENT_ID` directly without expecting `vaultIds`.
 
-## Sprint 3: Document Ingestion (Files API) & Prompt Caching
-Lens needs to analyze massive Privacy Policy documents.
-- **Goal:** Allow the user to submit a Privacy Policy URL or PDF as the initial message.
+## Sprint 3: Jurisdiction-Aware Caching & Agent-Driven Ingestion (Path A)
+Lens needs to analyze Privacy Policies against a selected jurisdiction's law. Ingestion is performed by the agent via tools (not pre-uploaded by the user). The static law text is what we cache.
+- **API constraint discovered during planning:** `client.beta.sessions.create()` does NOT accept `system` or `tools` per-session — these are baked into the Anthropic Agent. We therefore use **one Agent per jurisdiction** (Path A): the law text lives in each Agent's system prompt (cached for free by Anthropic), and `search_policy_url` + `read_url` are configured as custom tools on each Agent.
+- **Goal:** Pick the correct Anthropic Agent based on the selected jurisdiction; handle the custom-tool-use → custom-tool-result loop in the durable workflow.
 - **Tasks:**
-  1. Add a UI element (input/upload) to accept either a URL or a PDF file before starting the chat.
-  2. If a URL is provided, suggest a placeholder function to fetch the text (we will use Jina Reader API for this).
-  3. If a PDF is provided, integrate the **Anthropic Files API** to upload the document before calling `createSession` or sending the first workflow message.
-  4. **Prompt Caching:** Modify the Anthropic API calls in `app/workflows/tail-session.ts` (specifically the `sendMessage` step). Ensure the `system` prompt containing the legal framework (e.g., Ley 21.719) and the uploaded document/text are marked with `cache_control: {"type": "ephemeral"}` to save tokens and reduce latency.
+  1. **Jurisdiction registry.** Build `lib/laws.ts` that loads the markdown files in `laws/` at module init into a `Record<JurisdictionId, { id, label, text }>` map (`cl`, `eu`, `us-ca`). Default = `cl`.
+  2. **Schema.** Add `jurisdiction` column to `managed_agent_session` (text, default `'cl'`). Pass it from the new-chat composer when creating the session.
+  3. **Env wiring.** Replace the single `ANTHROPIC_AGENT_ID` with one ID per jurisdiction: `ANTHROPIC_AGENT_ID_CL`, `ANTHROPIC_AGENT_ID_EU`, `ANTHROPIC_AGENT_ID_US_CA`. `ANTHROPIC_ENVIRONMENT_ID` stays single (one container env shared across agents).
+  4. **`getManagedAgentConfig(jurisdiction)`** picks the right agent ID. `createManagedAgentSession(jurisdiction)` plumbs the jurisdiction through.
+  5. **UI: jurisdiction selector.** Dropdown in `new-chat-composer.tsx` next to the textarea — Chile (default), EU (GDPR), California (CCPA). Selection sent in the `POST /api/managed-agents/session` body.
+  6. **Two ingestion tools** wired into the durable workflow:
+     - `search_policy_url(company_name)` — Tavily search; returns top candidate URLs with snippets.
+     - `read_url(url)` — Jina Reader (`https://r.jina.ai/<url>`); returns clean markdown of the page.
+
+     The workflow watches for `agent.custom_tool_use` events emitted alongside `session.status_idle{stop_reason: requires_action}`, executes the corresponding handler (`lib/ingestion-tools.ts`), and replies with a `user.custom_tool_result` event. The tool definitions themselves live on the Anthropic Agent (configured in the console).
+  7. **Agent-config payloads.** Generate `agent-config/<jurisdiction>.md` for each jurisdiction containing the system prompt (auditor role + citation rules + the law text) and the tool JSON schemas, ready to paste into the Anthropic console.
+- **Deferred from original Sprint 3:** PDF upload (drop entirely, revisit only if the agent can't reach a paywalled policy).
 
 ## Sprint 4: The Audit Engine (Extended Thinking & Citations)
 The primary function is to audit the ingested policy against the law.
