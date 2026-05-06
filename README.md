@@ -6,6 +6,13 @@ There is no login — users are identified by an anonymous UUID generated in `lo
 
 When the agent finishes an audit, it persists a structured report (compliance score, severity-bucketed findings, citations, suggested rewrites) and surfaces a navigable Report view at `/chat/[sessionId]/report` alongside the chat transcript.
 
+## Screenshot
+
+![Screenshot of searcher](/screenshot/searcher.png)
+
+![Screenshot of report](screenshot/report.png)
+
+
 ## Stack
 
 | Layer       | Choice                                                                    |
