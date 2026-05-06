@@ -4,12 +4,32 @@
     "claude-api": {
       "source": "anthropics/skills",
       "sourceType": "github",
-      "computedHash": "ef469b7e846529e60f36f2b8c1a7aad3cb925cf1ea89b12855da08ae1012b1d4"
+      "skillPath": "skills/claude-api/SKILL.md",
+      "computedHash": "2285f3e0bf13e6aad1e8b613962061a284ef2dab7ee521260fb53cb6b235937a"
+    },
+    "internal-dev-workbench": {
+      "source": "vercel/workflow",
+      "sourceType": "github",
+      "skillPath": "skills/internal-dev-workbench/SKILL.md",
+      "computedHash": "4eed3d0ea0a45873d446e93be485af2ea7a323e149b3bd1349f8eaa1ae8315bd"
+    },
+    "migrating-to-workflow-sdk": {
+      "source": "vercel/workflow",
+      "sourceType": "github",
+      "skillPath": "skills/migrating-to-workflow-sdk/SKILL.md",
+      "computedHash": "4c081fffa9c89a3c91666b74f23758e14ec2c386d29b2c16b7cfd02e1698fe09"
     },
     "workflow": {
       "source": "vercel/workflow",
       "sourceType": "github",
-      "computedHash": "0d31efa78ad6a2e76d8e6089bf5e820a155976b76f8b82b64391344ad2ae310b"
+      "skillPath": "skills/workflow/SKILL.md",
+      "computedHash": "aad7631016438066937811865ff2ab5e71195e81c6f3c8d564e8556291eea124"
+    },
+    "workflow-init": {
+      "source": "vercel/workflow",
+      "sourceType": "github",
+      "skillPath": "skills/workflow-init/SKILL.md",
+      "computedHash": "16958b6fce870b067a557d78e17fd7bb3fb206f29def2db35fb4c2f6f01e497b"
     }
   }
 }
