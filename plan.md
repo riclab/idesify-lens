@@ -44,10 +44,13 @@ Lens needs to analyze Privacy Policies against a selected jurisdiction's law. In
 
 ## Sprint 4: The Audit Engine (Extended Thinking & Citations)
 The primary function is to audit the ingested policy against the law.
-- **Goal:** Enhance Claude's reasoning for the legal audit.
+- **API constraint:** `BetaManagedAgentsModelConfig` exposes only `id` and `speed`. There is no `thinking.budget_tokens` knob from our code. Extended Thinking is enabled per-Agent in the Anthropic console (or implied by the chosen model). The code-side work for this sprint is the **citation+audit rubric in the system prompt**.
+- **Goal:** Make the agent produce rigorous, structured audits with verbatim citations from both the law and the policy.
 - **Tasks:**
-  1. In the `sendMessage` function (`app/workflows/tail-session.ts`), configure the Anthropic API call to enable **Extended Thinking** (Claude 3.7 Sonnet feature) when the user requests an audit. Set a `thinking.budget_tokens` parameter.
-  2. Adjust the System Prompt to strictly require **Citations**. Claude must quote the exact paragraphs from the ingested document when pointing out a legal deficiency.
+  1. Strengthen each per-jurisdiction system prompt in `scripts/build-agent-config.ts` with a strict **Audit Output Format**: severity grading (Critical / High / Medium / Low / Info), required per-finding structure (article quote → policy quote → reasoning → suggested fix), and an explicit instruction to use extended reasoning when running an audit.
+  2. Regenerate `agent-config/<jurisdiction>.md` so the user can re-paste into the Anthropic console.
+  3. Document the **manual console step**: enable Extended Thinking on each of the three Agents (and pick a thinking-capable model) — this lives in `agent-config/README.md`.
+  4. Optional UI polish: keep the "Thinking…" indicator (currently shimmer); no longer hide `agent.thinking` events if doing so makes the audit feel more transparent.
 
 ## Sprint 5: The Proactive DPO Agent (Tool Calling)
 If the user wants to exercise their ARCO rights, the agent must autonomously find the Data Protection Officer (DPO) and draft an email.

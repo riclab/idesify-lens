@@ -5,14 +5,18 @@ Path A of Sprint 3 requires **one Anthropic Managed Agent per jurisdiction**, ea
 ## What to do
 
 1. Go to the Anthropic console → Managed Agents → Create Agent (one per jurisdiction below).
-2. For each agent, paste the contents of the per-jurisdiction file:
-   - `agent-config/cl.md` — Chile (Ley 21.719)
-   - `agent-config/eu.md` — EU (GDPR)
-   - `agent-config/us-ca.md` — California (CCPA)
+2. For each agent:
+   - Paste the contents of `agent-config/<jurisdiction>.system.md` into the system-prompt field.
+   - Add the two custom tools listed in `agent-config/<jurisdiction>.md` (one JSON block per tool).
 
-   Each file has two sections: **System prompt** (paste into the system-prompt field) and **Tools** (one JSON block per tool, paste into the custom-tool definition fields).
+   Files per jurisdiction:
+   - `cl.system.md` + `cl.md` — Chile (Ley 21.719)
+   - `eu.system.md` + `eu.md` — EU (GDPR)
+   - `us-ca.system.md` + `us-ca.md` — California (CCPA)
 
-3. Copy the resulting agent IDs into `.env.local`:
+3. **Enable Extended Thinking on each Agent.** In the Anthropic console, on each Agent's settings, pick a thinking-capable model (e.g. `claude-sonnet-4-6` or `claude-opus-4-6`) and turn on Extended Thinking with a budget around 8k–16k tokens. This is what lets the agent reason carefully before producing a structured audit. The Managed Agents SDK does not expose `thinking.budget_tokens` per session, so this must be done in the console. Without it the audit format still works, but the reasoning quality drops.
+
+4. Copy the resulting agent IDs into `.env.local`:
 
    ```
    ANTHROPIC_AGENT_ID_CL=agent_xxx
@@ -23,7 +27,7 @@ Path A of Sprint 3 requires **one Anthropic Managed Agent per jurisdiction**, ea
    JINA_API_KEY=jina_xxx       # optional; raises Jina Reader rate limits
    ```
 
-4. Restart the dev server.
+5. Restart the dev server.
 
 ## Tool handlers
 
