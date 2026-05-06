@@ -349,19 +349,18 @@ function parseRewrite(v: unknown): FindingRewrite | undefined {
   return { before, after };
 }
 
-function parseFinding(raw: unknown): Finding | { error: string } {
+function parseFinding(raw: unknown, fallbackId: string): Finding | { error: string } {
   if (!raw || typeof raw !== "object") return { error: "finding is not an object" };
   const obj = raw as Record<string, unknown>;
-  const id = asTrimmed(obj.id);
-  const sev = asTrimmed(obj.severity) as FindingSeverity | undefined;
-  const category = asTrimmed(obj.category);
-  const title = asTrimmed(obj.title);
-  const description = asTrimmed(obj.description);
-  if (!id) return { error: "missing id" };
-  if (!sev || !VALID_SEVERITIES.has(sev)) return { error: `invalid severity for ${id}` };
-  if (!category) return { error: `missing category for ${id}` };
-  if (!title) return { error: `missing title for ${id}` };
-  if (!description) return { error: `missing description for ${id}` };
+  const id = asTrimmed(obj.id) ?? fallbackId;
+  const rawSev = asTrimmed(obj.severity)?.toLowerCase();
+  const sev = (rawSev && VALID_SEVERITIES.has(rawSev as FindingSeverity)
+    ? (rawSev as FindingSeverity)
+    : "info") as FindingSeverity;
+  const category = asTrimmed(obj.category) ?? "General";
+  const title = asTrimmed(obj.title) ?? asTrimmed(obj.description) ?? "Finding";
+  const description =
+    asTrimmed(obj.description) ?? asTrimmed(obj.why_it_matters) ?? title;
   return {
     id,
     severity: sev,
@@ -401,24 +400,21 @@ async function runSubmitFindings(
   input: Record<string, unknown>,
   ctx: ToolContext,
 ): Promise<ToolResult> {
-  const policyLabel = asTrimmed(input.policy_label);
-  if (!policyLabel) {
-    return { text: "policy_label is required", isError: true };
-  }
+  const policyLabel = asTrimmed(input.policy_label) ?? "Audited policy";
 
   const scoreRaw = input.compliance_score;
-  const score = typeof scoreRaw === "number" ? Math.round(scoreRaw) : NaN;
-  if (!Number.isFinite(score) || score < 0 || score > 100) {
-    return {
-      text: "compliance_score must be an integer between 0 and 100",
-      isError: true,
-    };
-  }
+  const scoreParsed =
+    typeof scoreRaw === "number"
+      ? Math.round(scoreRaw)
+      : typeof scoreRaw === "string"
+        ? Math.round(Number(scoreRaw))
+        : NaN;
+  const score = Number.isFinite(scoreParsed)
+    ? Math.max(0, Math.min(100, scoreParsed))
+    : 50;
 
-  const riskLevel = asTrimmed(input.risk_level);
-  if (!riskLevel || !VALID_RISK.has(riskLevel)) {
-    return { text: "risk_level must be 'low', 'medium', or 'high'", isError: true };
-  }
+  const riskRaw = asTrimmed(input.risk_level)?.toLowerCase();
+  const riskLevel = riskRaw && VALID_RISK.has(riskRaw) ? riskRaw : "medium";
 
   const findingsRaw = input.findings;
   if (!Array.isArray(findingsRaw) || findingsRaw.length === 0) {
@@ -426,12 +422,13 @@ async function runSubmitFindings(
   }
 
   const findings: Finding[] = [];
-  for (const raw of findingsRaw) {
-    const parsed = parseFinding(raw);
-    if ("error" in parsed) {
-      return { text: `Invalid finding: ${parsed.error}`, isError: true };
-    }
+  findingsRaw.forEach((raw, i) => {
+    const parsed = parseFinding(raw, `F-${String(i + 1).padStart(2, "0")}`);
+    if ("error" in parsed) return;
     findings.push(parsed);
+  });
+  if (findings.length === 0) {
+    return { text: "no valid findings could be parsed", isError: true };
   }
 
   const policyUrl = asTrimmed(input.policy_url) ?? null;

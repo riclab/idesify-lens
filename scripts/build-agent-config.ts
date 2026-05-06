@@ -3,6 +3,50 @@ import { join } from "node:path";
 import { JURISDICTIONS, getLaw } from "@/lib/laws";
 import type { JurisdictionId } from "@/lib/laws";
 
+const SUBMIT_FINDINGS_BLOCK: Record<JurisdictionId, string> = {
+  cl: `
+
+## Reporte estructurado (obligatorio al auditar)
+
+Después de producir el Markdown anterior, **debes llamar a la herramienta \`submit_findings\` exactamente UNA vez** con el reporte estructurado. Esto persiste el resultado en una vista de "Reporte" navegable separada del chat.
+
+- Llámala SÓLO al completar una auditoría. NO la llames para responder preguntas de seguimiento, aclaraciones, ni para borradores parciales.
+- Incluye TODOS los hallazgos, también los que la política cumple bien (\`severity: "passing"\`), para reflejar lo evaluado.
+- \`compliance_score\`: 90–100 cumple, 70–89 cumple parcialmente, 50–69 riesgo medio, <50 riesgo alto.
+- \`risk_level\`: \`low\` / \`medium\` / \`high\` coherente con la puntuación.
+- IDs estables: \`C-01\`, \`C-02\` para críticos; \`W-01\`, \`W-02\` para warnings; \`I-01\` info; \`P-01\` passing.
+- Para hallazgos críticos y warnings, incluye \`suggested_rewrite\` con \`before\` (texto actual de la política, o cadena vacía si está ausente) y \`after\` (redacción propuesta).
+- \`article_quote\` debe ser el texto literal del artículo, sin comillas adicionales.
+
+Idioma: responde en el idioma del usuario (por defecto, español).`,
+  eu: `
+
+## Structured report (mandatory when auditing)
+
+After producing the Markdown above, you **must call the \`submit_findings\` tool exactly ONCE** with the structured report. This persists the result into a separate "Report" view navigable from the chat.
+
+- Call it ONLY when completing an audit. Do NOT call it for follow-up questions, clarifications, or partial summaries.
+- Include ALL findings, including the ones the policy meets well (\`severity: "passing"\`), to reflect what was evaluated.
+- \`compliance_score\`: 90–100 compliant, 70–89 mostly compliant, 50–69 medium risk, <50 high risk.
+- \`risk_level\`: \`low\` / \`medium\` / \`high\` consistent with the score.
+- Stable IDs: \`C-01\`, \`C-02\` for critical; \`W-01\`, \`W-02\` for warnings; \`I-01\` for info; \`P-01\` for passing.
+- For critical and warning findings, include \`suggested_rewrite\` with \`before\` (current policy text, or empty string if absent) and \`after\` (proposed wording).
+- \`article_quote\` must be the verbatim text of the Article, without extra quotation marks.`,
+  "us-ca": `
+
+## Structured report (mandatory when auditing)
+
+After producing the Markdown above, you **must call the \`submit_findings\` tool exactly ONCE** with the structured report. This persists the result into a separate "Report" view navigable from the chat.
+
+- Call it ONLY when completing an audit. Do NOT call it for follow-up questions, clarifications, or partial summaries.
+- Include ALL findings, including the ones the policy meets well (\`severity: "passing"\`), to reflect what was evaluated.
+- \`compliance_score\`: 90–100 compliant, 70–89 mostly compliant, 50–69 medium risk, <50 high risk.
+- \`risk_level\`: \`low\` / \`medium\` / \`high\` consistent with the score.
+- Stable IDs: \`C-01\`, \`C-02\` for critical; \`W-01\`, \`W-02\` for warnings; \`I-01\` for info; \`P-01\` for passing.
+- For critical and warning findings, include \`suggested_rewrite\` with \`before\` (current policy text, or empty string if absent) and \`after\` (proposed wording).
+- \`article_quote\` must be the verbatim text of the Section, without extra quotation marks.`,
+};
+
 const ROLE_INTRO: Record<JurisdictionId, string> = {
   cl: `Eres Idesify-Lens, un auditor legal especializado en privacidad y protección de datos personales en Chile bajo la Ley 21.719.
 
@@ -67,21 +111,7 @@ Una o dos frases con el veredicto general (cumple / cumple parcialmente / no cum
 1. Las citas de la ley deben ser **literales** y delimitadas con \`>\`. Indica el número de artículo exacto.
 2. Las citas de la política deben ser **literales** y delimitadas con \`>\`. Si recortas, usa \`[…]\`.
 3. Nunca parafrasees como si fuera cita. Si no encuentras el texto exacto, di "Ausente —".
-4. Si no estás seguro del número de artículo, busca de nuevo en la ley antes de responder.
-
-## Reporte estructurado (obligatorio al auditar)
-
-Después de producir el Markdown anterior, **debes llamar a la herramienta \`submit_findings\` exactamente UNA vez** con el reporte estructurado. Esto persiste el resultado en una vista de "Reporte" navegable separada del chat.
-
-- Llámala SÓLO al completar una auditoría. NO la llames para responder preguntas de seguimiento, aclaraciones, ni para borradores parciales.
-- Incluye TODOS los hallazgos, también los que la política cumple bien (\`severity: "passing"\`), para reflejar lo evaluado.
-- \`compliance_score\`: 90–100 cumple, 70–89 cumple parcialmente, 50–69 riesgo medio, <50 riesgo alto.
-- \`risk_level\`: \`low\` / \`medium\` / \`high\` coherente con la puntuación.
-- IDs estables: \`C-01\`, \`C-02\` para críticos; \`W-01\`, \`W-02\` para warnings; \`I-01\` info; \`P-01\` passing.
-- Para hallazgos críticos y warnings, incluye \`suggested_rewrite\` con \`before\` (texto actual de la política, o cadena vacía si está ausente) y \`after\` (redacción propuesta).
-- \`article_quote\` debe ser el texto literal del artículo, sin comillas adicionales.
-
-Idioma: responde en el idioma del usuario (por defecto, español).`,
+4. Si no estás seguro del número de artículo, busca de nuevo en la ley antes de responder.`,
   eu: `You are Idesify-Lens, a legal auditor specialized in data protection under the EU General Data Protection Regulation (GDPR, Regulation 2016/679).
 
 ## Your role
@@ -417,7 +447,7 @@ const TOOLS_JSON = [
 function buildSystemPrompt(jurisdiction: JurisdictionId): string {
   const law = getLaw(jurisdiction);
   return [
-    ROLE_INTRO[jurisdiction],
+    ROLE_INTRO[jurisdiction] + SUBMIT_FINDINGS_BLOCK[jurisdiction],
     "",
     "---",
     "",

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Copy, Download, PanelLeft, Share2 } from "lucide-react";
+import { Check, Copy, Download, Loader2, PanelLeft, Share2 } from "lucide-react";
 import { apiFetch } from "@/lib/anonymous-session";
 import { useSidebar } from "@/lib/sidebar-context";
 import { cn } from "@/lib/utils";
@@ -93,6 +93,9 @@ function reportVersion(createdAt: string): string {
   return `v.${yyyy}.${mm}.${dd}`;
 }
 
+const REGENERATE_PROMPT =
+  "Por favor, llama AHORA a la herramienta `submit_findings` con el reporte estructurado de la auditoría que acabas de producir. Es obligatorio para que aparezca en la pestaña Reporte. Incluye TODOS los hallazgos (críticos, warnings, info y passing). No respondas con texto adicional, sólo invoca la herramienta.";
+
 export function AuditReportView({ sessionId }: { sessionId: string }) {
   const sidebar = useSidebar();
   const [data, setData] = useState<ReportPayload | null>(null);
@@ -101,6 +104,10 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | null>(null);
+  const [regenerateNotice, setRegenerateNotice] = useState<string | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,6 +133,7 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
         if (cancelled) return;
         setData(json);
         setSelectedId(json.report.findings[0]?.id ?? null);
+        setError(null);
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Failed to load report");
@@ -137,8 +145,58 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
     void load();
     return () => {
       cancelled = true;
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
   }, [sessionId]);
+
+  async function handleRegenerate() {
+    if (regenerating) return;
+    setRegenerating(true);
+    setRegenerateError(null);
+    setRegenerateNotice(null);
+    try {
+      const res = await apiFetch("/api/managed-agents/message", {
+        method: "POST",
+        body: JSON.stringify({ sessionId, text: REGENERATE_PROMPT }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? "Failed to nudge the agent");
+      }
+      setRegenerateNotice(
+        "Asked the agent to call submit_findings. Polling for the report…",
+      );
+
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      const startedAt = Date.now();
+      pollTimerRef.current = setInterval(async () => {
+        try {
+          const probe = await apiFetch(
+            `/api/managed-agents/report?sessionId=${encodeURIComponent(sessionId)}`,
+            { method: "HEAD" },
+          );
+          if (probe.ok) {
+            window.location.reload();
+            return;
+          }
+        } catch {
+          /* keep polling */
+        }
+        if (Date.now() - startedAt > 90_000) {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          setRegenerating(false);
+          setRegenerateError(
+            "Still no report after 90s. Open the chat to see the agent's reply or any tool errors.",
+          );
+        }
+      }, 3_000);
+    } catch (e) {
+      setRegenerating(false);
+      setRegenerateError(
+        e instanceof Error ? e.message : "Failed to nudge the agent",
+      );
+    }
+  }
 
   const findings = useMemo(() => data?.report.findings ?? [], [data]);
   const counts = useMemo(() => countBySeverity(findings), [findings]);
@@ -283,15 +341,53 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
                 className="mt-1 text-[14px]"
                 style={{ color: "var(--muted-foreground)" }}
               >
-                {error}{" "}
+                {error}
+              </p>
+              <p
+                className="mt-3 text-[13px]"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                If the agent already produced an audit but didn&apos;t save it,
+                try nudging it to call <code>submit_findings</code>:
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleRegenerate()}
+                  disabled={regenerating}
+                  className="lens-audit-btn cursor-pointer disabled:cursor-wait disabled:opacity-60"
+                  style={{ padding: "8px 14px", fontSize: 13 }}
+                >
+                  {regenerating ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : null}
+                  {regenerating
+                    ? "Asking the agent…"
+                    : "Generate the report now"}
+                </button>
                 <Link
                   href={`/chat/${sessionId}`}
-                  className="underline"
-                  style={{ color: "var(--ink-2)" }}
+                  className="lens-btn-ghost cursor-pointer"
                 >
                   Back to transcript
                 </Link>
-              </p>
+              </div>
+              {regenerateNotice && (
+                <p
+                  className="mt-3 text-[12.5px]"
+                  style={{ color: "var(--ink-2)" }}
+                >
+                  {regenerateNotice}
+                </p>
+              )}
+              {regenerateError && (
+                <p
+                  className="mt-3 text-[12.5px]"
+                  style={{ color: "var(--red)" }}
+                >
+                  {regenerateError}
+                </p>
+              )}
             </div>
           )}
 

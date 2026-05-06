@@ -294,6 +294,36 @@ function TranscriptRenderer({ grouped }: { grouped: EventGroup[] }) {
           return <AssistantMessage key={ev.id} text={msg} />;
         }
 
+        if (type === "user.custom_tool_result") {
+          const msg = toolErrorText(ev);
+          if (!msg) return null;
+          const toolUseId =
+            (payload as { custom_tool_use_id?: string }).custom_tool_use_id ?? "";
+          return (
+            <div
+              key={ev.id}
+              className="lens-panel px-4 py-3"
+              style={{
+                borderColor: "var(--red)",
+                background: "hsl(0 51% 47% / 0.06)",
+              }}
+            >
+              <p
+                className="text-[12.5px] font-medium uppercase tracking-[0.08em]"
+                style={{ color: "var(--red)" }}
+              >
+                Tool error{toolUseId ? ` · ${toolUseId.slice(0, 12)}` : ""}
+              </p>
+              <p
+                className="mt-1 text-[13px] whitespace-pre-wrap"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                {msg}
+              </p>
+            </div>
+          );
+        }
+
         if (type === "session.status_idle") {
           return (
             <div
@@ -370,6 +400,21 @@ const HIDDEN_TYPES = new Set([
   "agent.thinking",
 ]);
 
+function toolErrorText(ev: TranscriptEvent): string | null {
+  if (ev.type !== "user.custom_tool_result") return null;
+  const payload = ev.payload as { is_error?: boolean; content?: unknown };
+  if (!payload.is_error) return null;
+  const parts: string[] = [];
+  if (Array.isArray(payload.content)) {
+    for (const block of payload.content as Array<{ type?: string; text?: string }>) {
+      if (block?.type === "text" && typeof block.text === "string") {
+        parts.push(block.text);
+      }
+    }
+  }
+  return parts.join("\n").trim() || "Tool returned an error.";
+}
+
 const TOOL_TYPES = new Set([
   "agent.tool_use",
   "agent.mcp_tool_use",
@@ -425,6 +470,13 @@ function groupEvents(events: TranscriptEvent[]) {
     if (ev.type === "session.status_idle") {
       const sr = ev.payload.stop_reason as { type?: string } | undefined;
       if (sr?.type !== "requires_action") continue;
+      flushTools();
+      groups.push({ kind: "event", event: ev });
+      continue;
+    }
+
+    if (ev.type === "user.custom_tool_result") {
+      if (!toolErrorText(ev)) continue;
       flushTools();
       groups.push({ kind: "event", event: ev });
       continue;
