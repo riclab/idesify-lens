@@ -70,7 +70,11 @@ function Markdown({
       <Streamdown
         components={streamdownComponents}
         linkSafety={{ enabled: false }}
-        animated={{ animation: "blurIn", duration: 220, easing: "ease-out" }}
+        animated={
+          isAnimating
+            ? { animation: "blurIn", duration: 220, easing: "ease-out" }
+            : false
+        }
         isAnimating={isAnimating}
       >
         {text}
@@ -368,6 +372,15 @@ function TranscriptRenderer({
   grouped: EventGroup[];
   isAnimating: boolean;
 }) {
+  let lastAgentMessageId: string | null = null;
+  for (let i = grouped.length - 1; i >= 0; i--) {
+    const g = grouped[i];
+    if (g.kind === "event" && g.event.type === "agent.message") {
+      lastAgentMessageId = g.event.id;
+      break;
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {grouped.map((group, idx) => {
