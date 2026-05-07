@@ -709,10 +709,29 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
         const data = (await res.json()) as {
           title: string | null;
           workflowRunId: string | null;
+          events?: TranscriptEvent[];
         };
         if (cancelled) return;
 
         setTitle(data.title);
+
+        if (data.events && data.events.length > 0) {
+          const real = data.events;
+          for (const ev of real) seenIdsRef.current.add(ev.id);
+          setEvents((prev) => {
+            const survivingOptimistic = prev.filter((e) => {
+              if (!e.id.startsWith("optimistic-")) return false;
+              if (e.type !== "user.message") return true;
+              const text = textFromContent(e.payload.content);
+              return !real.some(
+                (r) =>
+                  r.type === "user.message" &&
+                  textFromContent(r.payload.content) === text,
+              );
+            });
+            return [...survivingOptimistic, ...real];
+          });
+        }
 
         if (data.workflowRunId) {
           connectToStream(data.workflowRunId);
