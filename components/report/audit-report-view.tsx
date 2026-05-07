@@ -234,7 +234,7 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
                   <PanelLeft className="size-4" />
                 </Button>
               )}
-              <Link href="/">Lens</Link>
+              <Link href="/">Idesify - Lens</Link>
               <span className="sep">/</span>
               <Link href={`/chat/${sessionId}`}>Auditorías</Link>
               <span className="sep">/</span>

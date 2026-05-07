@@ -101,7 +101,7 @@ export function DashboardSidebar({
         <Link
           href="/"
           onClick={onNavigate}
-          aria-label="Idesify Lens — inicio"
+          aria-label="Idesify - Lens — inicio"
           className="flex items-center gap-2"
         >
           <span className="brand-dot" />
@@ -109,7 +109,7 @@ export function DashboardSidebar({
             className="text-[16px] font-medium tracking-tight"
             style={{ letterSpacing: "-0.01em" }}
           >
-            Lens
+            Idesify - Lens
           </span>
         </Link>
         {onToggleSidebar && (

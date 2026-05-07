@@ -146,7 +146,7 @@ export function NewChatComposer() {
           >
             <span className="live-dot" />
             <span style={{ color: "var(--ink-2)" }}>
-              Lens · auditor de privacidad
+              Idesify - Lens · auditor de privacidad
             </span>
           </span>
         </div>
@@ -275,7 +275,7 @@ export function NewChatComposer() {
           className="mt-10 flex items-center gap-1.5 text-[12.5px]"
           style={{ color: "var(--muted-2)" }}
         >
-          <span>Lens audita según Ley 21.719, GDPR y CCPA</span>
+          <span>Idesify - Lens audita según Ley 21.719, GDPR y CCPA</span>
           <span style={{ opacity: 0.5 }}>·</span>
           <a
             href="https://github.com/"

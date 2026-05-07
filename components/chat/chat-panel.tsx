@@ -271,7 +271,7 @@ function AssistantMessage({ text }: { text: string }) {
         style={{ color: "var(--muted-foreground)", fontWeight: 500 }}
       >
         <span className="brand-dot" style={{ width: 12, height: 12 }} />
-        Lens
+        Idesify - Lens
       </div>
       <Markdown text={text} />
     </div>
@@ -737,7 +737,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                     <PanelLeft className="size-4" />
                   </Button>
                 )}
-                <Link href="/">Lens</Link>
+                <Link href="/">Idesify - Lens</Link>
                 <span className="sep">/</span>
                 <span>Auditorías</span>
                 <span className="sep">/</span>
