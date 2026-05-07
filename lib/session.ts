@@ -14,16 +14,16 @@ function unauthorized(reason: string): NextResponse {
 
 export async function requireSessionId(): Promise<SessionAuth> {
   const sessionId = (await headers()).get("x-session-id")?.trim();
-  if (!sessionId) return { error: unauthorized("Missing x-session-id header") };
+  if (!sessionId) return { error: unauthorized("Falta el header x-session-id") };
   if (!UUID_RE.test(sessionId)) {
-    return { error: unauthorized("Invalid x-session-id") };
+    return { error: unauthorized("x-session-id inválido") };
   }
   return { sessionId };
 }
 
 export function requireSessionIdFromQuery(value: string | null): SessionAuth {
   const sessionId = value?.trim();
-  if (!sessionId) return { error: unauthorized("Missing sessionId") };
-  if (!UUID_RE.test(sessionId)) return { error: unauthorized("Invalid sessionId") };
+  if (!sessionId) return { error: unauthorized("Falta sessionId") };
+  if (!UUID_RE.test(sessionId)) return { error: unauthorized("sessionId inválido") };
   return { sessionId };
 }

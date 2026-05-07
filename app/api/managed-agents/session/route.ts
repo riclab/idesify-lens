@@ -20,12 +20,12 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
 
   const text = body.text?.trim();
   if (!text) {
-    return NextResponse.json({ error: "text is required" }, { status: 400 });
+    return NextResponse.json({ error: "El texto es obligatorio" }, { status: 400 });
   }
 
   const jurisdiction = isJurisdiction(body.jurisdiction)
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     anthropic = await createManagedAgentSession(jurisdiction);
   } catch (e) {
     const message =
-      e instanceof Error ? e.message : "Failed to create session";
+      e instanceof Error ? e.message : "No se pudo crear la sesión";
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
@@ -74,7 +74,7 @@ export async function DELETE(request: NextRequest) {
 
   const sessionId = request.nextUrl.searchParams.get("sessionId");
   if (!sessionId) {
-    return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
+    return NextResponse.json({ error: "Falta sessionId" }, { status: 400 });
   }
 
   const [row] = await db
@@ -89,7 +89,7 @@ export async function DELETE(request: NextRequest) {
     .limit(1);
 
   if (!row) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   }
 
   await db

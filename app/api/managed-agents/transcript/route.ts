@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const chatId = searchParams.get("sessionId")?.trim();
   if (!chatId) {
     return NextResponse.json(
-      { error: "sessionId query parameter is required" },
+      { error: "El parámetro sessionId es obligatorio" },
       { status: 400 },
     );
   }
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
 
   const sessionRow = sessions[0];
   if (!sessionRow) {
-    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404 });
   }
 
   return NextResponse.json({

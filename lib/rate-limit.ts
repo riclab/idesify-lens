@@ -29,7 +29,7 @@ export function checkMessageRateLimit(sessionId: string): {
   if (globalCount >= GLOBAL_LIMIT) {
     return {
       allowed: false,
-      reason: `Daily message limit reached. Try again tomorrow.`,
+      reason: `Se alcanzó el límite diario de mensajes. Inténtalo mañana.`,
     };
   }
 
@@ -39,7 +39,7 @@ export function checkMessageRateLimit(sessionId: string): {
   if (sessionCount >= PER_SESSION_LIMIT) {
     return {
       allowed: false,
-      reason: `You've sent ${PER_SESSION_LIMIT} messages today. Try again tomorrow.`,
+      reason: `Enviaste ${PER_SESSION_LIMIT} mensajes hoy. Inténtalo mañana.`,
     };
   }
 

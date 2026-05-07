@@ -1,11 +1,11 @@
 import type { PipelineStep } from "./audit-report-types";
 
 const TOOL_LABELS: Record<string, string> = {
-  read_url: "Fetch policy",
-  search_policy_url: "Locate policy URL",
-  search_dpo_contact: "Find DPO contact",
-  draft_legal_email: "Draft legal email",
-  submit_findings: "Compile report",
+  read_url: "Leer política",
+  search_policy_url: "Ubicar URL de la política",
+  search_dpo_contact: "Buscar contacto DPO",
+  draft_legal_email: "Redactar email legal",
+  submit_findings: "Compilar reporte",
 };
 
 function labelFor(name: string): string {

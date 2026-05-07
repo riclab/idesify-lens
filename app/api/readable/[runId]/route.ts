@@ -55,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     .limit(1);
 
   if (!row) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json({ error: "No encontrado" }, { status: 404 });
   }
 
   // Pre-flight: the workflow library returns a Run handle even for dead runIds
@@ -70,16 +70,16 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     });
     if (!alive) {
       await clearStaleRunId(runId);
-      return Response.json({ error: "Run gone" }, { status: 410 });
+      return Response.json({ error: "Ejecución expirada" }, { status: 410 });
     }
     readable = run.getReadable() as unknown as ReadableStream<unknown>;
   } catch (e) {
     if (isRunNotFound(e)) {
       await clearStaleRunId(runId);
-      return Response.json({ error: "Run gone" }, { status: 410 });
+      return Response.json({ error: "Ejecución expirada" }, { status: 410 });
     }
     console.error(`[readable] getReadable failed for runId=${runId}:`, e);
-    return Response.json({ error: "Run unavailable" }, { status: 500 });
+    return Response.json({ error: "Ejecución no disponible" }, { status: 500 });
   }
 
   const encoder = new TextEncoder();

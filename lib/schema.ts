@@ -5,7 +5,7 @@ export const managedAgentSession = pgTable("managed_agent_session", {
   id: text("id").primaryKey(),
   sessionId: text("session_id").notNull(),
   anthropicSessionId: text("anthropic_session_id").notNull().unique(),
-  title: text("title").notNull().default("New chat"),
+  title: text("title").notNull().default("Nueva auditoría"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

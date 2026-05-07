@@ -47,13 +47,13 @@ async function tavilySearch(query: string, maxResults = 5): Promise<ToolResult> 
   });
 
   if (!res.ok) {
-    return { text: `Tavily request failed: ${res.status} ${res.statusText}`, isError: true };
+    return { text: `La solicitud a Tavily falló: ${res.status} ${res.statusText}`, isError: true };
   }
 
   const data = (await res.json()) as { results?: SearchHit[] };
   const hits = (data.results ?? []).slice(0, maxResults);
   if (hits.length === 0) {
-    return { text: `No results found for "${query}"`, isError: false };
+    return { text: `No se encontraron resultados para "${query}"`, isError: false };
   }
 
   const formatted = hits
@@ -65,28 +65,28 @@ async function tavilySearch(query: string, maxResults = 5): Promise<ToolResult> 
     })
     .join("\n\n");
 
-  return { text: `Top results for "${query}":\n\n${formatted}`, isError: false };
+  return { text: `Principales resultados para "${query}":\n\n${formatted}`, isError: false };
 }
 
 async function runSearchPolicyUrl(input: Record<string, unknown>): Promise<ToolResult> {
   const company = typeof input.company_name === "string" ? input.company_name.trim() : "";
-  if (!company) return { text: "company_name is required", isError: true };
+  if (!company) return { text: "company_name es obligatorio", isError: true };
   return tavilySearch(`${company} privacy policy`);
 }
 
 async function runReadUrl(input: Record<string, unknown>): Promise<ToolResult> {
   const url = typeof input.url === "string" ? input.url.trim() : "";
-  if (!url) return { text: "url is required", isError: true };
+  if (!url) return { text: "url es obligatoria", isError: true };
 
   let target: URL;
   try {
     target = new URL(url);
   } catch {
-    return { text: `Invalid URL: ${url}`, isError: true };
+    return { text: `URL inválida: ${url}`, isError: true };
   }
 
   if (target.protocol !== "http:" && target.protocol !== "https:") {
-    return { text: `Unsupported URL protocol: ${target.protocol}`, isError: true };
+    return { text: `Protocolo de URL no soportado: ${target.protocol}`, isError: true };
   }
 
   const jinaUrl = `https://r.jina.ai/${target.toString()}`;
@@ -98,7 +98,7 @@ async function runReadUrl(input: Record<string, unknown>): Promise<ToolResult> {
   const res = await fetch(jinaUrl, { headers });
   if (!res.ok) {
     return {
-      text: `Jina Reader request failed for ${url}: ${res.status} ${res.statusText}`,
+      text: `La solicitud a Jina Reader falló para ${url}: ${res.status} ${res.statusText}`,
       isError: true,
     };
   }
@@ -114,7 +114,7 @@ async function runReadUrl(input: Record<string, unknown>): Promise<ToolResult> {
 
 async function runSearchDpoContact(input: Record<string, unknown>): Promise<ToolResult> {
   const company = typeof input.company_name === "string" ? input.company_name.trim() : "";
-  if (!company) return { text: "company_name is required", isError: true };
+  if (!company) return { text: "company_name es obligatorio", isError: true };
 
   // Mix DPO-specific terminology in EN and ES so we hit either jurisdiction's phrasing.
   const query = `${company} (DPO OR "data protection officer" OR "delegado de protección de datos" OR "oficial de privacidad" OR "privacy officer") email contact`;
@@ -281,17 +281,17 @@ function buildEmailDraft(args: {
 async function runDraftLegalEmail(input: Record<string, unknown>): Promise<ToolResult> {
   const jurisdiction = input.jurisdiction;
   if (!isJurisdiction(jurisdiction)) {
-    return { text: "jurisdiction must be 'cl', 'eu', or 'us-ca'", isError: true };
+    return { text: "jurisdiction debe ser 'cl', 'eu' o 'us-ca'", isError: true };
   }
 
   const right = typeof input.right === "string" ? (input.right as Right) : null;
-  if (!right) return { text: "right is required", isError: true };
+  if (!right) return { text: "right es obligatorio", isError: true };
 
   const rightLabel = RIGHT_LABELS[jurisdiction][right];
   if (!rightLabel) {
     const valid = Object.keys(RIGHT_LABELS[jurisdiction]).join(", ");
     return {
-      text: `right "${right}" is not valid for jurisdiction "${jurisdiction}". Valid: ${valid}`,
+      text: `right "${right}" no es válido para jurisdiction "${jurisdiction}". Válidos: ${valid}`,
       isError: true,
     };
   }
@@ -300,7 +300,7 @@ async function runDraftLegalEmail(input: Record<string, unknown>): Promise<ToolR
   const companyName = typeof input.company_name === "string" ? input.company_name.trim() : "";
   const requesterName = typeof input.requester_name === "string" ? input.requester_name.trim() : "";
   if (!recipientEmail || !companyName || !requesterName) {
-    return { text: "recipient_email, company_name, and requester_name are required", isError: true };
+    return { text: "recipient_email, company_name y requester_name son obligatorios", isError: true };
   }
 
   const recipientName = typeof input.recipient_name === "string" ? input.recipient_name.trim() : undefined;
@@ -350,7 +350,7 @@ function parseRewrite(v: unknown): FindingRewrite | undefined {
 }
 
 function parseFinding(raw: unknown, fallbackId: string): Finding | { error: string } {
-  if (!raw || typeof raw !== "object") return { error: "finding is not an object" };
+  if (!raw || typeof raw !== "object") return { error: "finding no es un objeto" };
   const obj = raw as Record<string, unknown>;
   const id = asTrimmed(obj.id) ?? fallbackId;
   const rawSev = asTrimmed(obj.severity)?.toLowerCase();
@@ -358,7 +358,7 @@ function parseFinding(raw: unknown, fallbackId: string): Finding | { error: stri
     ? (rawSev as FindingSeverity)
     : "info") as FindingSeverity;
   const category = asTrimmed(obj.category) ?? "General";
-  const title = asTrimmed(obj.title) ?? asTrimmed(obj.description) ?? "Finding";
+  const title = asTrimmed(obj.title) ?? asTrimmed(obj.description) ?? "Hallazgo";
   const description =
     asTrimmed(obj.description) ?? asTrimmed(obj.why_it_matters) ?? title;
   return {
@@ -400,7 +400,7 @@ async function runSubmitFindings(
   input: Record<string, unknown>,
   ctx: ToolContext,
 ): Promise<ToolResult> {
-  const policyLabel = asTrimmed(input.policy_label) ?? "Audited policy";
+  const policyLabel = asTrimmed(input.policy_label) ?? "Política auditada";
 
   const scoreRaw = input.compliance_score;
   const scoreParsed =
@@ -418,7 +418,7 @@ async function runSubmitFindings(
 
   const findingsRaw = input.findings;
   if (!Array.isArray(findingsRaw) || findingsRaw.length === 0) {
-    return { text: "findings must be a non-empty array", isError: true };
+    return { text: "findings debe ser un arreglo no vacío", isError: true };
   }
 
   const findings: Finding[] = [];
@@ -428,7 +428,7 @@ async function runSubmitFindings(
     findings.push(parsed);
   });
   if (findings.length === 0) {
-    return { text: "no valid findings could be parsed", isError: true };
+    return { text: "no se pudieron procesar hallazgos válidos", isError: true };
   }
 
   const policyUrl = asTrimmed(input.policy_url) ?? null;

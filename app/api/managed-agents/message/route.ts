@@ -22,14 +22,14 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
 
   const chatId = body.sessionId?.trim();
   const text = body.text?.trim();
   if (!chatId || !text) {
     return NextResponse.json(
-      { error: "sessionId and text are required" },
+      { error: "sessionId y texto son obligatorios" },
       { status: 400 },
     );
   }
@@ -47,10 +47,11 @@ export async function POST(request: Request) {
 
   const row = rows[0];
   if (!row) {
-    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404 });
   }
 
-  const isFirstMessage = row.title === "New chat";
+  const isFirstMessage =
+    row.title === "New chat" || row.title === "Nueva auditoría";
   const titleUpdate = isFirstMessage
     ? { title: text.length > 60 ? `${text.slice(0, 57)}...` : text }
     : {};
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
           ),
         );
       return NextResponse.json(
-        { error: "This audit session has expired. Start a new one." },
+        { error: "Esta sesión de auditoría expiró. Inicia una nueva." },
         { status: 410 },
       );
     }
