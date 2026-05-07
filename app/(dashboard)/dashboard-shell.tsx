@@ -61,7 +61,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   size="icon-sm"
                   className="hidden md:flex cursor-pointer"
                   onClick={toggleSidebar}
-                  aria-label="Open sidebar"
+                  aria-label="Abrir barra lateral"
                 >
                   <PanelLeft className="size-4" />
                 </Button>
@@ -71,7 +71,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 size="icon-sm"
                 className="md:hidden cursor-pointer"
                 onClick={() => setMobileOpen(true)}
-                aria-label="Open sidebar"
+                aria-label="Abrir barra lateral"
               >
                 <PanelLeft className="size-4" />
               </Button>

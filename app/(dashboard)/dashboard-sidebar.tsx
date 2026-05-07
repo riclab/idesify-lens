@@ -25,13 +25,13 @@ function formatTimeAgo(dateStr: string): string {
   const then = new Date(dateStr).getTime();
   const diffMs = now - then;
   const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 1) return "now";
+  if (minutes < 1) return "ahora";
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d`;
-  return new Date(dateStr).toLocaleDateString();
+  return new Date(dateStr).toLocaleDateString("es-CL");
 }
 
 export function DashboardSidebar({
@@ -101,7 +101,7 @@ export function DashboardSidebar({
         <Link
           href="/"
           onClick={onNavigate}
-          aria-label="Idesify Lens — home"
+          aria-label="Idesify Lens — inicio"
           className="flex items-center gap-2"
         >
           <span className="brand-dot" />
@@ -117,7 +117,7 @@ export function DashboardSidebar({
             type="button"
             variant="ghost"
             size="icon-sm"
-            aria-label="Close sidebar"
+            aria-label="Cerrar barra lateral"
             onClick={onToggleSidebar}
             className="cursor-pointer"
           >
@@ -137,7 +137,7 @@ export function DashboardSidebar({
         }}
       >
         <Plus className="size-4" />
-        <span>New audit</span>
+        <span>Nueva auditoría</span>
       </Link>
 
       <div
@@ -145,7 +145,7 @@ export function DashboardSidebar({
         style={{ borderRadius: 18 }}
       >
         <div className="lens-panel-head" style={{ padding: "12px 16px" }}>
-          <span className="ttl">Recent audits</span>
+          <span className="ttl">Auditorías recientes</span>
           {sessionItems.length > 0 && (
             <span
               className="font-mono text-[11px]"
@@ -162,7 +162,7 @@ export function DashboardSidebar({
               className="px-2 py-3 text-[12.5px]"
               style={{ color: "var(--muted-2)" }}
             >
-              No audits yet.
+              Aún no hay auditorías.
             </div>
           )}
           {sessionItems.map((session) => {
@@ -192,7 +192,7 @@ export function DashboardSidebar({
                     }}
                   />
                   <span className="t truncate">
-                    {session.title || "Untitled audit"}
+                    {session.title || "Auditoría sin título"}
                   </span>
                   <span
                     className="ms"
@@ -204,7 +204,7 @@ export function DashboardSidebar({
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     className="absolute right-1 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-1 opacity-0 transition-opacity hover:bg-secondary group-hover/session:opacity-100 data-[popup-open]:opacity-100"
-                    aria-label="Session options"
+                    aria-label="Opciones de sesión"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Ellipsis className="size-3.5" />
@@ -216,7 +216,7 @@ export function DashboardSidebar({
                       onClick={() => void deleteSession(session.id)}
                     >
                       <Trash2 className="size-4" />
-                      Delete
+                      Eliminar
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

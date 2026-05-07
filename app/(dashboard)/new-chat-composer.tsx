@@ -24,42 +24,42 @@ const JURISDICTIONS = [
 type JurisdictionId = (typeof JURISDICTIONS)[number]["id"];
 
 const HEADING_PROMPTS = [
-  ["Audit a", "privacy", "policy"],
-  ["Check", "Ley 21.719", "compliance"],
-  ["Find a", "DPO", "contact"],
-  ["Draft an", "ARCO rights", "request"],
-  ["Spot legal", "deficiencies", ""],
+  ["Audita una", "política", "de privacidad"],
+  ["Revisa el", "cumplimiento", "de la Ley 21.719"],
+  ["Encuentra el", "contacto", "del DPO"],
+  ["Redacta una", "solicitud", "ARCO"],
+  ["Detecta", "deficiencias", "legales"],
 ] as const;
 
 const SUGGESTION_PILLS = [
   {
-    label: "Audit",
-    prompt: "Audit this privacy policy for Ley 21.719 compliance",
+    label: "Auditar",
+    prompt: "Audita esta política de privacidad según la Ley 21.719",
     icon: <Search className="size-3.5" />,
   },
   {
-    label: "Summarize",
-    prompt: "Summarize the data collection practices described in this policy",
+    label: "Resumir",
+    prompt: "Resume las prácticas de recolección de datos descritas en esta política",
     icon: <FileText className="size-3.5" />,
   },
   {
-    label: "Explain clauses",
-    prompt: "Explain the most surprising clauses in this policy in plain language",
+    label: "Explicar cláusulas",
+    prompt: "Explica en lenguaje claro las cláusulas más llamativas de esta política",
     icon: <Code className="size-3.5" />,
   },
   {
-    label: "Find DPO",
-    prompt: "Find the Data Protection Officer contact for this company",
+    label: "Buscar DPO",
+    prompt: "Encuentra el contacto del delegado u oficial de protección de datos de esta empresa",
     icon: <BookOpen className="size-3.5" />,
   },
   {
-    label: "Draft request",
-    prompt: "Draft a data deletion request citing the relevant law",
+    label: "Redactar solicitud",
+    prompt: "Redacta una solicitud de eliminación de datos citando la ley aplicable",
     icon: <Sparkles className="size-3.5" />,
   },
   {
-    label: "Risk check",
-    prompt: "List the riskiest data sharing practices in this policy",
+    label: "Revisar riesgos",
+    prompt: "Lista las prácticas de intercambio de datos más riesgosas de esta política",
     icon: <Zap className="size-3.5" />,
   },
 ];
@@ -96,7 +96,7 @@ export function NewChatComposer() {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           setError(
-            (body as { error?: string }).error ?? "Failed to create session",
+            (body as { error?: string }).error ?? "No se pudo crear la sesión",
           );
           return;
         }
@@ -106,7 +106,7 @@ export function NewChatComposer() {
         router.push(`/chat/${data.id}`);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to create session",
+          err instanceof Error ? err.message : "No se pudo crear la sesión",
         );
       } finally {
         setCreating(false);
@@ -142,11 +142,11 @@ export function NewChatComposer() {
         <div className="mb-2 flex items-center gap-3">
           <span
             className="live-pill"
-            aria-label="Live status indicator"
+            aria-label="Indicador de estado activo"
           >
             <span className="live-dot" />
             <span style={{ color: "var(--ink-2)" }}>
-              Lens · privacy auditor
+              Lens · auditor de privacidad
             </span>
           </span>
         </div>
@@ -175,7 +175,7 @@ export function NewChatComposer() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Paste a policy URL or describe what you want audited…"
+              placeholder="Pega una URL de política o describe qué quieres auditar…"
               rows={1}
               disabled={creating}
               className="lens-search-input"
@@ -201,7 +201,7 @@ export function NewChatComposer() {
                 style={{ color: "var(--muted-2)" }}
                 aria-hidden
               />
-              <span className="sr-only">Jurisdiction</span>
+              <span className="sr-only">Jurisdicción</span>
               <select
                 value={jurisdiction}
                 onChange={(e) =>
@@ -221,7 +221,7 @@ export function NewChatComposer() {
 
             <button
               type="submit"
-              aria-label="Run audit"
+              aria-label="Ejecutar auditoría"
               disabled={!prompt.trim() || creating}
               className="lens-audit-btn"
             >
@@ -229,7 +229,7 @@ export function NewChatComposer() {
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <>
-                  <span>Audit</span>
+                  <span>Auditar</span>
                   <span className="lens-kbd" aria-hidden>
                     ⏎
                   </span>
@@ -253,7 +253,7 @@ export function NewChatComposer() {
             className="mr-1 text-[13px]"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Try
+            Prueba
           </span>
           {SUGGESTION_PILLS.map((pill) => (
             <button
@@ -275,7 +275,7 @@ export function NewChatComposer() {
           className="mt-10 flex items-center gap-1.5 text-[12.5px]"
           style={{ color: "var(--muted-2)" }}
         >
-          <span>Lens audits against Ley 21.719, GDPR, CCPA</span>
+          <span>Lens audita según Ley 21.719, GDPR y CCPA</span>
           <span style={{ opacity: 0.5 }}>·</span>
           <a
             href="https://github.com/"
@@ -284,7 +284,7 @@ export function NewChatComposer() {
             className="inline-flex items-center gap-1 transition-colors hover:opacity-80"
           >
             <GitHubIcon className="size-3.5" />
-            source
+            código
           </a>
         </p>
       </div>

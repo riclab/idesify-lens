@@ -188,7 +188,7 @@ export function SearchableSingleSelect({
               </span>
               <button
                 type="button"
-                aria-label="Close"
+                aria-label="Cerrar"
                 onClick={() => {
                   setOpen(false);
                   setSearch("");
@@ -204,13 +204,13 @@ export function SearchableSingleSelect({
                 <Search className="size-3.5 shrink-0 text-muted-foreground" />
                 <input
                   autoFocus
-                  aria-label="Search"
+                  aria-label="Buscar"
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
                     onSearchChange?.(e.target.value);
                   }}
-                  placeholder={`Search ${placeholder.toLowerCase().replace("select ", "")}...`}
+                  placeholder={`Buscar ${placeholder.toLowerCase().replace("selecciona ", "")}...`}
                   className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/60"
                 />
               </div>
@@ -221,7 +221,7 @@ export function SearchableSingleSelect({
                 <>
                   <div className="px-3 pt-2 pb-1">
                     <span className="text-xs text-muted-foreground">
-                      Recent
+                      Recientes
                     </span>
                   </div>
                   {recentOptions.map((option) => (
@@ -241,7 +241,7 @@ export function SearchableSingleSelect({
                 mainOptions.length > 0 && (
                   <div className="px-3 pt-1 pb-1">
                     <span className="text-xs text-muted-foreground">
-                      All Repositories
+                      Todos los repositorios
                     </span>
                   </div>
                 )}

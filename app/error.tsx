@@ -18,7 +18,7 @@ export default function GlobalError({
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4">
-      <Link href="/" aria-label="Home">
+      <Link href="/" aria-label="Inicio">
         <VercelIcon className="size-6 text-foreground" />
       </Link>
 
@@ -27,10 +27,10 @@ export default function GlobalError({
           <AlertCircle className="size-5 text-destructive" />
         </div>
 
-        <h1 className="text-lg font-medium">Something went wrong</h1>
+        <h1 className="text-lg font-medium">Algo salió mal</h1>
 
         <p className="text-sm leading-relaxed text-muted-foreground">
-          An unexpected error occurred. Please try again.
+          Ocurrió un error inesperado. Inténtalo nuevamente.
         </p>
       </div>
 
@@ -39,13 +39,13 @@ export default function GlobalError({
           onClick={reset}
           className="flex h-9 cursor-pointer items-center justify-center rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
         >
-          Try again
+          Intentar de nuevo
         </button>
         <Link
           href="/"
           className="flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          Back to home
+          Volver al inicio
         </Link>
       </div>
     </div>

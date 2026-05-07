@@ -32,9 +32,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Idesify Lens — Privacy policy auditor",
+  title: "Idesify Lens — Auditor de políticas de privacidad",
   description:
-    "Audit privacy policies against Chilean Law 21.719, GDPR, and CCPA — with verbatim citations and ARCO-rights drafting.",
+    "Audita políticas de privacidad según la Ley chilena 21.719, GDPR y CCPA, con citas textuales y borradores de solicitudes ARCO.",
 };
 
 export default function RootLayout({
@@ -44,7 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="es"
       className={cn(
         inter.variable,
         instrumentSerif.variable,

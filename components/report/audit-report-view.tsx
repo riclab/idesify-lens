@@ -33,10 +33,10 @@ type ReportPayload = {
 type Filter = "all" | FindingSeverity;
 
 const SEV_LABEL: Record<FindingSeverity, string> = {
-  critical: "Critical",
-  warning: "Warnings",
+  critical: "Crítico",
+  warning: "Advertencias",
   info: "Info",
-  passing: "Passing",
+  passing: "Cumple",
 };
 
 const SEV_LETTER: Record<FindingSeverity, string> = {
@@ -77,10 +77,10 @@ function formatDuration(ms: number): string {
 
 function riskLabel(risk: "low" | "medium" | "high"): string {
   return risk === "low"
-    ? "low risk"
+    ? "riesgo bajo"
     : risk === "medium"
-      ? "medium risk"
-      : "high risk";
+      ? "riesgo medio"
+      : "riesgo alto";
 }
 
 function reportVersion(createdAt: string): string {
@@ -118,7 +118,7 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
         );
         if (res.status === 404) {
           if (!cancelled) {
-            setError("Report not ready yet. Wait for the audit to finish.");
+            setError("El reporte aún no está listo. Espera a que termine la auditoría.");
             setLoading(false);
           }
           return;
@@ -126,7 +126,7 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(
-            (body as { error?: string }).error ?? "Failed to load",
+            (body as { error?: string }).error ?? "No se pudo cargar",
           );
         }
         const json = (await res.json()) as ReportPayload;
@@ -136,7 +136,7 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
         setError(null);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load report");
+          setError(e instanceof Error ? e.message : "No se pudo cargar el reporte");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -161,10 +161,10 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? "Failed to nudge the agent");
+        throw new Error(body.error ?? "No se pudo avisar al agente");
       }
       setRegenerateNotice(
-        "Asked the agent to call submit_findings. Polling for the report…",
+        "Se le pidió al agente llamar a submit_findings. Buscando el reporte…",
       );
 
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -186,14 +186,14 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           setRegenerating(false);
           setRegenerateError(
-            "Still no report after 90s. Open the chat to see the agent's reply or any tool errors.",
+            "Aún no hay reporte después de 90s. Abre el chat para ver la respuesta del agente o posibles errores de herramientas.",
           );
         }
       }, 3_000);
     } catch (e) {
       setRegenerating(false);
       setRegenerateError(
-        e instanceof Error ? e.message : "Failed to nudge the agent",
+          e instanceof Error ? e.message : "No se pudo avisar al agente",
       );
     }
   }
@@ -229,17 +229,17 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
                   size="icon-sm"
                   className="-ml-2 hidden shrink-0 cursor-pointer md:flex"
                   onClick={sidebar.toggle}
-                  aria-label="Open sidebar"
+                  aria-label="Abrir barra lateral"
                 >
                   <PanelLeft className="size-4" />
                 </Button>
               )}
               <Link href="/">Lens</Link>
               <span className="sep">/</span>
-              <Link href={`/chat/${sessionId}`}>Audits</Link>
+              <Link href={`/chat/${sessionId}`}>Auditorías</Link>
               <span className="sep">/</span>
               <span style={{ color: "var(--ink-2)" }}>
-                {loading ? "…" : data?.report.policyLabel ?? "Report"}
+                {loading ? "…" : data?.report.policyLabel ?? "Reporte"}
               </span>
             </div>
 
@@ -253,7 +253,7 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
                 {data.report.policyLabel}
               </h1>
             ) : (
-              <h1 className="lens-title mt-1">Report unavailable</h1>
+              <h1 className="lens-title mt-1">Reporte no disponible</h1>
             )}
 
             {data && (
@@ -267,7 +267,7 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
                     className="dot"
                     style={{ background: "var(--green)" }}
                   />
-                  Completed · {formatDuration(totalDurationMs(data.report.pipeline))}
+                  Completado · {formatDuration(totalDurationMs(data.report.pipeline))}
                 </span>
                 <span className="lens-cite">
                   {reportVersion(data.report.createdAt)}
@@ -281,7 +281,7 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
               href={`/chat/${sessionId}`}
               className="lens-btn-ghost cursor-pointer"
             >
-              Transcript
+              Transcripción
             </Link>
             <button
               type="button"
@@ -293,24 +293,24 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
               ) : (
                 <Copy className="size-3.5" />
               )}
-              {copied ? "Copied" : "Copy link"}
+              {copied ? "Copiado" : "Copiar enlace"}
             </button>
             <button
               type="button"
               className="lens-btn-ghost cursor-pointer"
               disabled
-              title="Coming soon"
+              title="Próximamente"
             >
-              <Share2 className="size-3.5" /> Share
+              <Share2 className="size-3.5" /> Compartir
             </button>
             <button
               type="button"
               className="lens-audit-btn cursor-pointer"
               style={{ padding: "10px 16px", fontSize: 13.5 }}
               disabled
-              title="Coming soon"
+              title="Próximamente"
             >
-              <Download className="size-3.5" /> Export PDF
+              <Download className="size-3.5" /> Exportar PDF
             </button>
           </div>
         </div>
@@ -335,7 +335,7 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
                 className="text-[12.5px] font-medium uppercase tracking-[0.08em]"
                 style={{ color: "var(--amber)" }}
               >
-                Report not ready
+                Reporte no listo
               </p>
               <p
                 className="mt-1 text-[14px]"
@@ -347,8 +347,8 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
                 className="mt-3 text-[13px]"
                 style={{ color: "var(--muted-foreground)" }}
               >
-                If the agent already produced an audit but didn&apos;t save it,
-                try nudging it to call <code>submit_findings</code>:
+                Si el agente ya produjo una auditoría pero no la guardó,
+                pídele que llame a <code>submit_findings</code>:
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <button
@@ -362,14 +362,14 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
                     <Loader2 className="size-3.5 animate-spin" />
                   ) : null}
                   {regenerating
-                    ? "Asking the agent…"
-                    : "Generate the report now"}
+                    ? "Avisando al agente…"
+                    : "Generar el reporte ahora"}
                 </button>
                 <Link
                   href={`/chat/${sessionId}`}
                   className="lens-btn-ghost cursor-pointer"
                 >
-                  Back to transcript
+                  Volver a la transcripción
                 </Link>
               </div>
               {regenerateNotice && (
@@ -465,7 +465,7 @@ function ScoreSummary({
             className="mt-2 text-[12.5px] uppercase tracking-[0.08em]"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Compliance score · {riskLabel(risk)}
+            Puntaje de cumplimiento · {riskLabel(risk)}
           </p>
         </div>
 
@@ -519,18 +519,18 @@ function FindingsList({
   onSelect: (id: string) => void;
 }) {
   const tabs: Array<{ key: Filter; label: string; count: number }> = [
-    { key: "all", label: "All", count: total },
-    { key: "critical", label: "Critical", count: counts.critical },
-    { key: "warning", label: "Warnings", count: counts.warning },
+    { key: "all", label: "Todos", count: total },
+    { key: "critical", label: "Críticos", count: counts.critical },
+    { key: "warning", label: "Advertencias", count: counts.warning },
     { key: "info", label: "Info", count: counts.info },
-    { key: "passing", label: "Passing", count: counts.passing },
+    { key: "passing", label: "Cumple", count: counts.passing },
   ];
 
   return (
     <div className="lens-panel">
       <div className="lens-panel-head">
         <div className="ttl">
-          Findings ·{" "}
+          Hallazgos ·{" "}
           <span style={{ color: "var(--muted-foreground)" }}>
             {filteredCount}/{total}
           </span>
@@ -568,7 +568,7 @@ function FindingsList({
             className="px-6 py-10 text-center text-sm"
             style={{ color: "var(--muted-foreground)" }}
           >
-            No findings in this category.
+            No hay hallazgos en esta categoría.
           </div>
         ) : (
           findings.map((f, i) => (
@@ -656,7 +656,7 @@ function FindingDetail({ finding }: { finding: Finding }) {
   return (
     <div className="lens-panel">
       <div className="lens-panel-head">
-        <div className="ttl">{finding.id} · Detail</div>
+        <div className="ttl">{finding.id} · Detalle</div>
         <span style={{ color: "var(--muted-foreground)" }}>
           {finding.category}
         </span>
@@ -668,7 +668,7 @@ function FindingDetail({ finding }: { finding: Finding }) {
               className="mb-2 text-[11.5px] uppercase tracking-[0.08em]"
               style={{ color: "var(--muted-foreground)" }}
             >
-              The article
+              El artículo
             </p>
             <blockquote className="lens-quote">{finding.article_quote}</blockquote>
           </div>
@@ -680,7 +680,7 @@ function FindingDetail({ finding }: { finding: Finding }) {
               className="mb-2 text-[11.5px] uppercase tracking-[0.08em]"
               style={{ color: "var(--muted-foreground)" }}
             >
-              Why it matters
+              Por qué importa
             </p>
             <p
               className="text-[14px]"
@@ -697,7 +697,7 @@ function FindingDetail({ finding }: { finding: Finding }) {
               className="mb-2 text-[11.5px] uppercase tracking-[0.08em]"
               style={{ color: "var(--muted-foreground)" }}
             >
-              Suggested rewrite
+              Redacción sugerida
             </p>
             <div className="lens-diff space-y-2">
               {finding.suggested_rewrite.before && (
@@ -744,14 +744,14 @@ function AuditPipeline({ steps }: { steps: PipelineStep[] }) {
             className="text-[11.5px] uppercase tracking-[0.08em]"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Audit pipeline
+            Flujo de auditoría
           </div>
         </div>
         <div
           className="px-6 py-5 text-[13px]"
           style={{ color: "var(--muted-foreground)" }}
         >
-          No tool calls recorded.
+          No hay llamadas a herramientas registradas.
         </div>
       </div>
     );
@@ -763,7 +763,7 @@ function AuditPipeline({ steps }: { steps: PipelineStep[] }) {
           className="text-[11.5px] uppercase tracking-[0.08em]"
           style={{ color: "var(--muted-foreground)" }}
         >
-          Audit pipeline
+          Flujo de auditoría
         </div>
       </div>
       <div className="space-y-1 px-4 py-4">

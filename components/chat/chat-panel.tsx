@@ -102,22 +102,26 @@ function summarizeToolGroup(tools: TranscriptEvent[]): string {
     counts.set(cat, (counts.get(cat) ?? 0) + 1);
   }
 
-  const order: [string, string, string][] = [
-    ["fetched", "Read", "URLs"],
-    ["searched", "Searched", "queries"],
-    ["dpo", "Looked up DPO contact", "DPO contacts"],
-    ["drafted", "Drafted", "drafts"],
-    ["other", "Ran", "actions"],
+  const order: Array<{
+    key: string;
+    one: string;
+    many: (count: number) => string;
+  }> = [
+    { key: "fetched", one: "Leyó una URL", many: (n) => `Leyó ${n} URLs` },
+    { key: "searched", one: "Buscó una consulta", many: (n) => `Buscó ${n} consultas` },
+    { key: "dpo", one: "Buscó contacto DPO", many: (n) => `Buscó ${n} contactos DPO` },
+    { key: "drafted", one: "Redactó un borrador", many: (n) => `Redactó ${n} borradores` },
+    { key: "other", one: "Ejecutó una acción", many: (n) => `Ejecutó ${n} acciones` },
   ];
 
   const parts: string[] = [];
-  for (const [key, verb, plural] of order) {
+  for (const { key, one, many } of order) {
     const n = counts.get(key);
     if (!n) continue;
-    parts.push(n === 1 ? verb : `${verb} ${n} ${plural}`);
+    parts.push(n === 1 ? one : many(n));
   }
 
-  return parts.join(" · ") || `${tools.length} steps`;
+  return parts.join(" · ") || `${tools.length} pasos`;
 }
 
 function describeToolAction(name: string, input: unknown): string {
@@ -206,7 +210,7 @@ function ToolGroup({ tools }: { tools: TranscriptEvent[] }) {
         style={{ color: "var(--muted-foreground)" }}
       >
         <span className="lens-cite" style={{ fontSize: 11 }}>
-          {tools.length} step{tools.length === 1 ? "" : "s"}
+          {tools.length} paso{tools.length === 1 ? "" : "s"}
         </span>
         <span style={{ color: "var(--ink-2)" }}>{label}</span>
         <ChevronRight
@@ -249,7 +253,7 @@ function UserMessage({ text }: { text: string }) {
             whiteSpace: "pre-wrap",
           }}
         >
-          {text || "(empty)"}
+          {text || "(vacío)"}
         </div>
       </div>
     </div>
@@ -312,7 +316,7 @@ function TranscriptRenderer({ grouped }: { grouped: EventGroup[] }) {
                 className="text-[12.5px] font-medium uppercase tracking-[0.08em]"
                 style={{ color: "var(--red)" }}
               >
-                Tool error{toolUseId ? ` · ${toolUseId.slice(0, 12)}` : ""}
+                Error de herramienta{toolUseId ? ` · ${toolUseId.slice(0, 12)}` : ""}
               </p>
               <p
                 className="mt-1 text-[13px] whitespace-pre-wrap"
@@ -338,13 +342,13 @@ function TranscriptRenderer({ grouped }: { grouped: EventGroup[] }) {
                 className="text-[12.5px] font-medium uppercase tracking-[0.08em]"
                 style={{ color: "var(--amber)" }}
               >
-                Requires action
+                Requiere acción
               </p>
               <p
                 className="mt-1 text-[13px]"
                 style={{ color: "var(--muted-foreground)" }}
               >
-                This audit needs confirmation in the Anthropic console.
+                Esta auditoría necesita confirmación en la consola de Anthropic.
               </p>
             </div>
           );
@@ -412,7 +416,7 @@ function toolErrorText(ev: TranscriptEvent): string | null {
       }
     }
   }
-  return parts.join("\n").trim() || "Tool returned an error.";
+  return parts.join("\n").trim() || "La herramienta devolvió un error.";
 }
 
 const TOOL_TYPES = new Set([
@@ -578,7 +582,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(
-            (body as { error?: string }).error ?? "Failed to load",
+            (body as { error?: string }).error ?? "No se pudo cargar",
           );
         }
         const data = (await res.json()) as {
@@ -597,7 +601,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
       } catch (e) {
         if (!cancelled) {
           setError(
-            e instanceof Error ? e.message : "Failed to load transcript",
+            e instanceof Error ? e.message : "No se pudo cargar la transcripción",
           );
         }
       } finally {
@@ -672,14 +676,14 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? "Send failed");
+        throw new Error((body as { error?: string }).error ?? "No se pudo enviar");
       }
 
       if (runIdRef.current) {
         connectToStream(runIdRef.current);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Send failed");
+      setError(e instanceof Error ? e.message : "No se pudo enviar");
       setTailing(false);
       setEvents((prev) => prev.filter((ev) => ev.id !== optimisticId));
     } finally {
@@ -710,7 +714,9 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
   const showThinking = isActive && lastUserIdx >= 0;
 
   const displayTitle =
-    title && title !== "New chat" ? title : "New audit";
+    title && title !== "New chat" && title !== "Nueva auditoría"
+      ? title
+      : "Nueva auditoría";
 
   return (
     <div className="flex h-full min-h-0">
@@ -726,14 +732,14 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                     size="icon-sm"
                     className="-ml-2 hidden shrink-0 md:flex"
                     onClick={sidebar.toggle}
-                    aria-label="Open sidebar"
+                    aria-label="Abrir barra lateral"
                   >
                     <PanelLeft className="size-4" />
                   </Button>
                 )}
                 <Link href="/">Lens</Link>
                 <span className="sep">/</span>
-                <span>Audits</span>
+                <span>Auditorías</span>
                 <span className="sep">/</span>
                 <span style={{ color: "var(--ink-2)" }}>
                   {loading ? "…" : displayTitle.length > 40 ? `${displayTitle.slice(0, 40)}…` : displayTitle}
@@ -754,7 +760,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                 </span>
                 <span className={cn("lens-meta-pill", isActive && "live")}>
                   <span className="dot" />
-                  {isActive ? "auditing" : "idle"}
+                  {isActive ? "auditando" : "en espera"}
                 </span>
                 {hasReport && (
                   <Link
@@ -766,7 +772,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                     }}
                   >
                     <FileText className="size-3" />
-                    Report ready →
+                    Reporte listo →
                   </Link>
                 )}
               </div>
@@ -779,14 +785,14 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                   color: "var(--ink-2)",
                 }}
               >
-                Transcript
+                Transcripción
               </span>
               <Link
                 href={`/chat/${sessionId}/report`}
                 className="cursor-pointer rounded-full px-3 py-1.5 text-[12.5px] transition-colors hover:bg-secondary"
                 style={{ color: hasReport ? "var(--ink-2)" : "var(--muted-foreground)" }}
               >
-                Report
+                Reporte
               </Link>
             </div>
           </div>
@@ -819,7 +825,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                 <div className="pt-2" role="status" aria-live="polite">
                   <span className="live-pill">
                     <span className="live-dot" />
-                    <span style={{ color: "var(--ink-2)" }}>Thinking…</span>
+                    <span style={{ color: "var(--ink-2)" }}>Analizando…</span>
                   </span>
                 </div>
               )}
@@ -848,7 +854,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                     void handleSend();
                   }
                 }}
-                placeholder="Ask a follow-up…"
+                placeholder="Pregunta algo más…"
                 rows={1}
                 disabled={sending || isActive}
                 className="lens-search-input"
@@ -863,7 +869,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
               />
               <button
                 type="button"
-                aria-label="Send message"
+                aria-label="Enviar mensaje"
                 onClick={() => void handleSend()}
                 disabled={sending || !text.trim() || isActive}
                 className="lens-audit-btn"
