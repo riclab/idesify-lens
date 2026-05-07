@@ -105,6 +105,7 @@ Sign out uses `authClient.signOut()` from Better Auth's React client with `onSuc
 
 ## Taste Preferences (Captured)
 
+- The product UI must be in Spanish by default, including metadata, empty states, errors, action labels, and accessibility labels.
 - Use the Vercel logo/icon in the sidebar header, not Anthropic
 - Match the vercel-opencode aesthetic: clean, minimal, dark
 - No heavy gradients or glassmorphism
