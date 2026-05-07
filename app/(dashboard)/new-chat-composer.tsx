@@ -51,9 +51,9 @@ const SUGGESTION_PILLS = [
     icon: <Search className="size-3.5" />,
   },
   {
-    label: "Auditar Mercado Libre",
+    label: "Auditar Falabella",
     prompt:
-      "Busca y audita la política de privacidad de Mercado Libre Chile. Revisa bases legales, transferencias internacionales, derechos ARCO y plazos de respuesta.",
+      "Busca y audita la política de privacidad de Falabella Chile. Revisa bases legales, transferencias internacionales, derechos ARCO y plazos de respuesta.",
     icon: <FileText className="size-3.5" />,
   },
   {
