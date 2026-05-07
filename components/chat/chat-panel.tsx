@@ -329,6 +329,11 @@ function TranscriptRenderer({ grouped }: { grouped: EventGroup[] }) {
         }
 
         if (type === "session.status_idle") {
+          const stopType = (payload as { stop_reason?: { type?: string } })
+            .stop_reason?.type;
+          if (stopType !== "retries_exhausted" && stopType !== "max_turns") {
+            return null;
+          }
           return (
             <div
               key={ev.id}
@@ -342,13 +347,15 @@ function TranscriptRenderer({ grouped }: { grouped: EventGroup[] }) {
                 className="text-[12.5px] font-medium uppercase tracking-[0.08em]"
                 style={{ color: "var(--amber)" }}
               >
-                Requiere acción
+                La auditoría se detuvo
               </p>
               <p
                 className="mt-1 text-[13px]"
                 style={{ color: "var(--muted-foreground)" }}
               >
-                Esta auditoría necesita confirmación en la consola de Anthropic.
+                {stopType === "retries_exhausted"
+                  ? "El agente agotó sus reintentos. Vuelve a intentarlo."
+                  : "Se alcanzó el límite de turnos. Vuelve a intentarlo."}
               </p>
             </div>
           );
