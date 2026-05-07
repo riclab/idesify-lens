@@ -398,7 +398,11 @@ function TranscriptRenderer({
           const msg = textFromContent(payload.content);
           if (!msg) return null;
           return (
-            <AssistantMessage key={ev.id} text={msg} isAnimating={isAnimating} />
+            <AssistantMessage
+              key={ev.id}
+              text={msg}
+              isAnimating={isAnimating && ev.id === lastAgentMessageId}
+            />
           );
         }
 
@@ -671,14 +675,19 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
     };
 
     es.onerror = () => {
-      // Browser EventSource fires `error` for both transient blips and terminal
-      // closes (e.g. server returned 410 Gone because the workflow run was
-      // garbage-collected). After close() readyState is CLOSED — there will be
-      // no further reconnects, so it's safe to stop tailing.
-      es.close();
-      eventSourceRef.current = null;
-      runIdRef.current = null;
-      setTailing(false);
+      // EventSource fires `error` for two distinct cases:
+      //   - readyState === CONNECTING: transient drop (Vercel proxy idle
+      //     timeout, function maxDuration hit, network blip). The browser will
+      //     auto-reconnect; the server-side getReadable() replays the full
+      //     event history, which we dedupe via seenIdsRef. Do not close.
+      //   - readyState === CLOSED: server returned a non-success response
+      //     (e.g. 410 Gone because the workflow run was garbage-collected).
+      //     There will be no more reconnects, so stop tailing.
+      if (es.readyState === EventSource.CLOSED) {
+        eventSourceRef.current = null;
+        runIdRef.current = null;
+        setTailing(false);
+      }
     };
   }
 
