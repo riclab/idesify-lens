@@ -9,6 +9,7 @@ import { consumePendingMessage } from "@/lib/pending-message";
 import { useSidebar } from "@/lib/sidebar-context";
 import { apiFetch, getAnonSessionId } from "@/lib/anonymous-session";
 import { Button } from "@/components/ui/button";
+import { LawTicker } from "@/components/chat/law-ticker";
 
 type TranscriptEvent = {
   id: string;
@@ -959,6 +960,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                   </span>
                 </div>
               )}
+              {isActive && <LawTicker />}
               <div ref={bottomRef} />
             </div>
           )}
