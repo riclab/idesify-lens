@@ -148,6 +148,72 @@ function describeToolAction(name: string, input: unknown): string {
   return "";
 }
 
+function shortHost(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.host.replace(/^www\./, "");
+  } catch {
+    return url.length > 48 ? `${url.slice(0, 45)}…` : url;
+  }
+}
+
+function liveStatusForEvent(ev: TranscriptEvent): string | null {
+  const payload = (ev.payload ?? {}) as Record<string, unknown>;
+  const input = (payload.input ?? {}) as Record<string, unknown>;
+
+  switch (ev.type) {
+    case "agent.thinking":
+      return "Pensando…";
+    case "session.status_running":
+      return "Trabajando…";
+    case "span.model_request_start":
+      return "Consultando al modelo…";
+    case "agent.thread_context_compacted":
+      return "Compactando contexto…";
+    case "agent.tool_result":
+    case "agent.mcp_tool_result":
+    case "user.custom_tool_result":
+      return "Procesando resultados…";
+    case "agent.custom_tool_use": {
+      const name = typeof payload.name === "string" ? payload.name : "";
+      const company =
+        typeof input.company_name === "string" ? input.company_name : "";
+      const url = typeof input.url === "string" ? input.url : "";
+      switch (name) {
+        case "search_policy_url":
+          return company
+            ? `Buscando la política de ${company}…`
+            : "Buscando la política de privacidad…";
+        case "read_url":
+          return url ? `Leyendo ${shortHost(url)}…` : "Leyendo URL…";
+        case "search_dpo_contact":
+          return company
+            ? `Buscando contacto del DPO de ${company}…`
+            : "Buscando contacto del DPO…";
+        case "draft_legal_email":
+          return "Redactando correo legal…";
+        default:
+          return name ? `Ejecutando ${name}…` : "Ejecutando herramienta…";
+      }
+    }
+    case "agent.tool_use":
+    case "agent.mcp_tool_use": {
+      const name = typeof payload.name === "string" ? payload.name : "";
+      const url = typeof input.url === "string" ? input.url : "";
+      const query = typeof input.query === "string" ? input.query : "";
+      if (name === "web_search" || name === "search") {
+        return query ? `Buscando en la web: "${query}"…` : "Buscando en la web…";
+      }
+      if (name === "web_fetch" || name === "webfetch") {
+        return url ? `Consultando ${shortHost(url)}…` : "Consultando URL…";
+      }
+      return name ? `Usando ${name}…` : "Usando herramienta…";
+    }
+    default:
+      return null;
+  }
+}
+
 function ToolCallItem({ ev }: { ev: TranscriptEvent }) {
   const [expanded, setExpanded] = useState(false);
   const rawName = resolveToolName(ev);
@@ -745,6 +811,16 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
   const isActive = (tailing || sending) && !agentDoneAfterLastMsg;
   const showThinking = isActive && lastUserIdx >= 0;
 
+  const liveStatus = useMemo(() => {
+    if (!showThinking) return null;
+    const since = events.slice(lastUserIdx + 1);
+    for (let i = since.length - 1; i >= 0; i--) {
+      const status = liveStatusForEvent(since[i]);
+      if (status) return status;
+    }
+    return "Analizando…";
+  }, [events, lastUserIdx, showThinking]);
+
   const displayTitle =
     title && title !== "New chat" && title !== "Nueva auditoría"
       ? title
@@ -853,11 +929,11 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                 </div>
               )}
               <TranscriptRenderer grouped={grouped} isAnimating={tailing} />
-              {showThinking && (
+              {showThinking && liveStatus && (
                 <div className="pt-2" role="status" aria-live="polite">
                   <span className="live-pill">
                     <span className="live-dot" />
-                    <span style={{ color: "var(--ink-2)" }}>Analizando…</span>
+                    <span style={{ color: "var(--ink-2)" }}>{liveStatus}</span>
                   </span>
                 </div>
               )}
