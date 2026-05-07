@@ -11,6 +11,7 @@ import { sessionWorkflow } from "@/app/workflows/tail-session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 800;
 
 export async function POST(request: NextRequest) {
   const authz = await requireSessionId();

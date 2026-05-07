@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app/.well-known/workflow/v1/**/*.ts": { "maxDuration": 800 },
+    "app/api/managed-agents/**/*.ts": { "maxDuration": 800 },
+    "app/api/readable/**/*.ts": { "maxDuration": 800 }
+  }
+}

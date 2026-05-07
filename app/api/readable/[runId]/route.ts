@@ -7,6 +7,7 @@ import { managedAgentSession } from "@/lib/schema";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 800;
 
 type RouteContext = {
   params: Promise<{ runId: string }>;
