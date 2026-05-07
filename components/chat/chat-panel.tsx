@@ -58,10 +58,21 @@ const streamdownComponents: Components = {
   ),
 };
 
-function Markdown({ text }: { text: string }) {
+function Markdown({
+  text,
+  isAnimating = false,
+}: {
+  text: string;
+  isAnimating?: boolean;
+}) {
   return (
     <div className="lens-prose">
-      <Streamdown components={streamdownComponents} linkSafety={{ enabled: false }}>
+      <Streamdown
+        components={streamdownComponents}
+        linkSafety={{ enabled: false }}
+        animated={{ animation: "blurIn", duration: 220, easing: "ease-out" }}
+        isAnimating={isAnimating}
+      >
         {text}
       </Streamdown>
     </div>
@@ -260,7 +271,13 @@ function UserMessage({ text }: { text: string }) {
   );
 }
 
-function AssistantMessage({ text }: { text: string }) {
+function AssistantMessage({
+  text,
+  isAnimating,
+}: {
+  text: string;
+  isAnimating: boolean;
+}) {
   return (
     <div
       className="lens-panel"
@@ -273,12 +290,18 @@ function AssistantMessage({ text }: { text: string }) {
         <span className="brand-dot" style={{ width: 12, height: 12 }} />
         Idesify - Lens
       </div>
-      <Markdown text={text} />
+      <Markdown text={text} isAnimating={isAnimating} />
     </div>
   );
 }
 
-function TranscriptRenderer({ grouped }: { grouped: EventGroup[] }) {
+function TranscriptRenderer({
+  grouped,
+  isAnimating,
+}: {
+  grouped: EventGroup[];
+  isAnimating: boolean;
+}) {
   return (
     <div className="flex flex-col gap-4">
       {grouped.map((group, idx) => {
@@ -295,7 +318,9 @@ function TranscriptRenderer({ grouped }: { grouped: EventGroup[] }) {
         if (type === "agent.message") {
           const msg = textFromContent(payload.content);
           if (!msg) return null;
-          return <AssistantMessage key={ev.id} text={msg} />;
+          return (
+            <AssistantMessage key={ev.id} text={msg} isAnimating={isAnimating} />
+          );
         }
 
         if (type === "user.custom_tool_result") {
@@ -827,7 +852,7 @@ export function ChatPanel({ sessionId }: { sessionId: string }) {
                   </p>
                 </div>
               )}
-              <TranscriptRenderer grouped={grouped} />
+              <TranscriptRenderer grouped={grouped} isAnimating={tailing} />
               {showThinking && (
                 <div className="pt-2" role="status" aria-live="polite">
                   <span className="live-pill">
