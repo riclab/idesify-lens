@@ -1,11 +1,10 @@
-import { defineHook, sleep, getWritable } from "workflow";
+import { defineHook, getWritable } from "workflow";
 import { getAnthropic } from "@/lib/anthropic";
 import { anthropicEventId } from "@/lib/managed-agent-events";
 import { executeTool, type ToolContext } from "@/lib/tool-handlers";
+import type { BetaManagedAgentsSessionEvent } from "@anthropic-ai/sdk/resources/beta/sessions/events";
 
-const MAX_POLLS_PER_TURN = 200;
 const MAX_TOOL_ROUNDS = 10;
-const POLL_INTERVAL = "3s";
 
 export type SessionEvent = {
   id: string;
@@ -31,87 +30,138 @@ async function sendMessage(
   console.log(`[sendMessage] DONE`);
 }
 
-type PollResult = {
+type StreamResult = {
   lastEventId: string | null;
-  status: "continue" | "end_turn" | "requires_action";
+  status: "end_turn" | "requires_action";
   toolUseEventIds: string[];
 };
 
-async function pollAndStream(input: {
+function eventOccurredAt(event: BetaManagedAgentsSessionEvent): string {
+  if (
+    "processed_at" in event &&
+    typeof (event as { processed_at?: string | null }).processed_at === "string"
+  ) {
+    return (event as { processed_at: string }).processed_at;
+  }
+  return new Date().toISOString();
+}
+
+function classifyTerminal(
+  event: BetaManagedAgentsSessionEvent,
+): { status: "end_turn" | "requires_action"; toolUseEventIds: string[] } | null {
+  if (event.type === "session.status_idle") {
+    const stopReason = (
+      event as { stop_reason?: { type?: string; event_ids?: string[] } }
+    ).stop_reason;
+    if (stopReason?.type === "requires_action") {
+      return {
+        status: "requires_action",
+        toolUseEventIds: stopReason.event_ids ?? [],
+      };
+    }
+    return { status: "end_turn", toolUseEventIds: [] };
+  }
+  if (
+    event.type === "session.status_terminated" ||
+    event.type === "session.deleted"
+  ) {
+    return { status: "end_turn", toolUseEventIds: [] };
+  }
+  return null;
+}
+
+async function streamUntilTerminal(input: {
   anthropicSessionId: string;
   lastEventId: string | null;
-}): Promise<PollResult> {
+}): Promise<StreamResult> {
   "use step";
-  console.log(`[pollAndStream] START session=${input.anthropicSessionId} lastEventId=${input.lastEventId}`);
+  console.log(
+    `[streamUntilTerminal] START session=${input.anthropicSessionId} lastEventId=${input.lastEventId}`,
+  );
 
   const client = getAnthropic();
   const writer = getWritable<SessionEvent>().getWriter();
 
-  let status: PollResult["status"] = "continue";
-  let toolUseEventIds: string[] = [];
-  let lastId = input.lastEventId;
+  const seen = new Set<string>();
+  if (input.lastEventId) seen.add(input.lastEventId);
+
+  let result: StreamResult = {
+    lastEventId: input.lastEventId,
+    status: "end_turn",
+    toolUseEventIds: [],
+  };
   let written = 0;
 
+  // Open the live stream first so we don't miss anything emitted while we
+  // backfill via events.list.
+  const stream = await client.beta.sessions.events.stream(
+    input.anthropicSessionId,
+  );
+
+  const writeEvent = async (event: BetaManagedAgentsSessionEvent) => {
+    const aid = anthropicEventId(event);
+    if (!aid || seen.has(aid)) return null;
+    seen.add(aid);
+
+    await writer.write({
+      id: aid,
+      type: event.type,
+      payload: event as unknown as Record<string, unknown>,
+      occurredAt: eventOccurredAt(event),
+    });
+    written++;
+    result = { ...result, lastEventId: aid };
+    return classifyTerminal(event);
+  };
+
   try {
+    // Backfill: any events emitted between sendMessage and stream connection.
+    // events.list returns ascending; we iterate forward and pick up everything
+    // newer than lastEventId.
     const page = await client.beta.sessions.events.list(
       input.anthropicSessionId,
       { limit: 100 },
     );
 
-    console.log(`[pollAndStream] fetched ${page.data.length} events`);
-
     let seenLast = input.lastEventId === null;
     for (const event of page.data) {
       const aid = anthropicEventId(event);
       if (!aid) continue;
-
       if (!seenLast) {
         if (aid === input.lastEventId) seenLast = true;
         continue;
       }
-
-      const occurredAt =
-        "processed_at" in event &&
-        typeof (event as { processed_at?: string | null }).processed_at ===
-          "string"
-          ? (event as { processed_at: string }).processed_at
-          : new Date().toISOString();
-
-      await writer.write({
-        id: aid,
-        type: event.type,
-        payload: event as unknown as Record<string, unknown>,
-        occurredAt,
-      });
-
-      written++;
-      lastId = aid;
-
-      if (event.type === "session.status_idle") {
-        const stopReason = (event as { stop_reason?: { type?: string; event_ids?: string[] } }).stop_reason;
-        if (stopReason?.type === "requires_action") {
-          status = "requires_action";
-          toolUseEventIds = stopReason.event_ids ?? [];
-        } else {
-          status = "end_turn";
-        }
-        break;
+      const terminal = await writeEvent(event);
+      if (terminal) {
+        result = { ...result, ...terminal };
+        console.log(
+          `[streamUntilTerminal] terminal in backfill wrote=${written} status=${terminal.status}`,
+        );
+        return result;
       }
+    }
 
-      if (
-        event.type === "session.status_terminated" ||
-        event.type === "session.deleted"
-      ) {
-        status = "end_turn";
+    // Live tail
+    for await (const event of stream) {
+      const terminal = await writeEvent(event);
+      if (terminal) {
+        result = { ...result, ...terminal };
         break;
       }
     }
   } finally {
+    try {
+      stream.controller.abort();
+    } catch {
+      // already aborted
+    }
     writer.releaseLock();
   }
 
-  console.log(`[pollAndStream] DONE wrote=${written} lastId=${lastId} status=${status} toolEvents=${toolUseEventIds.length}`);
-  return { lastEventId: lastId, status, toolUseEventIds };
+  console.log(
+    `[streamUntilTerminal] DONE wrote=${written} lastId=${result.lastEventId} status=${result.status} toolEvents=${result.toolUseEventIds.length}`,
+  );
+  return result;
 }
 
 async function runToolsAndReply(input: {
@@ -174,35 +224,29 @@ async function processTurn(
   await sendMessage(anthropicSessionId, text);
 
   let currentLastEventId = lastEventId;
-  let toolRounds = 0;
 
-  for (let i = 0; i < MAX_POLLS_PER_TURN; i++) {
-    await sleep(POLL_INTERVAL);
-
-    const result = await pollAndStream({
+  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+    const result = await streamUntilTerminal({
       anthropicSessionId,
       lastEventId: currentLastEventId,
     });
-
     currentLastEventId = result.lastEventId;
 
     if (result.status === "end_turn") {
-      console.log(`[sessionWorkflow] turn complete after ${i + 1} polls`);
+      console.log(`[sessionWorkflow] turn complete after ${round} tool rounds`);
       break;
     }
 
-    if (result.status === "requires_action") {
-      if (toolRounds >= MAX_TOOL_ROUNDS) {
-        console.warn(`[sessionWorkflow] hit MAX_TOOL_ROUNDS=${MAX_TOOL_ROUNDS}, ending turn`);
-        break;
-      }
-      toolRounds++;
-      await runToolsAndReply({
-        anthropicSessionId,
-        toolUseEventIds: result.toolUseEventIds,
-        ctx,
-      });
+    if (round === MAX_TOOL_ROUNDS) {
+      console.warn(`[sessionWorkflow] hit MAX_TOOL_ROUNDS=${MAX_TOOL_ROUNDS}, ending turn`);
+      break;
     }
+
+    await runToolsAndReply({
+      anthropicSessionId,
+      toolUseEventIds: result.toolUseEventIds,
+      ctx,
+    });
   }
   return currentLastEventId;
 }
