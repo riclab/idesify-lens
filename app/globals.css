@@ -57,23 +57,31 @@
 
 :root {
   /* shadcn surface + text */
-  --background: hsl(42 33% 95%);          /* #F6F4EF canvas */
-  --foreground: hsl(36 14% 9%);           /* #1A1814 ink */
-  --card: hsl(44 30% 97%);                /* #FBFAF6 surface */
+  --background: hsl(42 33% 95%);
+  /* #F6F4EF canvas */
+  --foreground: hsl(36 14% 9%);
+  /* #1A1814 ink */
+  --card: hsl(44 30% 97%);
+  /* #FBFAF6 surface */
   --card-foreground: hsl(36 14% 9%);
   --popover: hsl(44 30% 97%);
   --popover-foreground: hsl(36 14% 9%);
-  --primary: hsl(36 14% 9%);              /* ink — primary buttons */
+  --primary: hsl(36 14% 9%);
+  /* ink — primary buttons */
   --primary-foreground: hsl(42 33% 95%);
-  --secondary: hsl(42 25% 91%);           /* #EFEBE3 = bg-2 hover */
+  --secondary: hsl(42 25% 91%);
+  /* #EFEBE3 = bg-2 hover */
   --secondary-foreground: hsl(36 14% 13%);
   --muted: hsl(42 25% 91%);
-  --muted-foreground: hsl(30 6% 39%);     /* #6B6660 muted text */
-  --accent: hsl(344 76% 80%);             /* #F4A6B8 pink */
+  --muted-foreground: hsl(30 6% 39%);
+  /* #6B6660 muted text */
+  --accent: hsl(344 76% 80%);
+  /* #F4A6B8 pink */
   --accent-foreground: hsl(36 14% 9%);
   --destructive: hsl(0 50% 47%);
   --destructive-foreground: hsl(42 33% 95%);
-  --border: hsl(40 28% 86%);              /* #E4DFD4 line */
+  --border: hsl(40 28% 86%);
+  /* #E4DFD4 line */
   --input: hsl(40 28% 86%);
   --ring: hsl(343 56% 64%);
 
@@ -96,13 +104,20 @@
   --chart-5: hsl(0 51% 47%);
 
   /* Lens-specific extras */
-  --accent-deep: hsl(343 56% 64%);        /* #D86E89 */
-  --ink-2: hsl(36 14% 13%);               /* #2A2620 */
-  --muted-2: hsl(36 5% 52%);              /* #8E8980 tertiary text */
-  --line-2: hsl(39 21% 79%);              /* #D6CFC0 stronger line */
-  --green: hsl(145 46% 34%);              /* #2F7D4F */
-  --amber: hsl(39 71% 41%);               /* #B5811E */
-  --red: hsl(0 51% 47%);                  /* #B23A3A */
+  --accent-deep: hsl(343 56% 64%);
+  /* #D86E89 */
+  --ink-2: hsl(36 14% 13%);
+  /* #2A2620 */
+  --muted-2: hsl(36 5% 52%);
+  /* #8E8980 tertiary text */
+  --line-2: hsl(39 21% 79%);
+  /* #D6CFC0 stronger line */
+  --green: hsl(145 46% 34%);
+  /* #2F7D4F */
+  --amber: hsl(39 71% 41%);
+  /* #B5811E */
+  --red: hsl(0 51% 47%);
+  /* #B23A3A */
 }
 
 .dark {
@@ -148,6 +163,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans), system-ui, sans-serif;
@@ -156,6 +172,7 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
+
   html {
     font-family: var(--font-sans), system-ui, sans-serif;
   }
@@ -171,6 +188,7 @@
   font-weight: 400;
   letter-spacing: -0.01em;
 }
+
 .font-mono,
 .mono {
   font-family: var(--font-mono), ui-monospace, monospace;
@@ -181,12 +199,10 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: radial-gradient(
-    circle at 32% 30%,
-    #ffd0dc 0%,
-    var(--accent) 45%,
-    var(--accent-deep) 100%
-  );
+  background: radial-gradient(circle at 32% 30%,
+      #ffd0dc 0%,
+      var(--accent) 45%,
+      var(--accent-deep) 100%);
   box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.05);
 }
 
@@ -201,6 +217,7 @@
   font-size: 13px;
   color: var(--ink-2);
 }
+
 .live-dot {
   width: 7px;
   height: 7px;
@@ -210,11 +227,14 @@
   animation: lens-pulse 1.8s ease-in-out infinite;
   flex-shrink: 0;
 }
+
 @keyframes lens-pulse {
+
   0%,
   100% {
     box-shadow: 0 0 0 0 hsl(343 56% 64% / 0.55);
   }
+
   50% {
     box-shadow: 0 0 0 6px hsl(343 56% 64% / 0);
   }
@@ -236,23 +256,27 @@
     border-color 0.15s,
     box-shadow 0.2s;
 }
+
 .lens-search:focus-within {
   border-color: var(--line-2);
   box-shadow:
     0 1px 2px rgba(20, 18, 12, 0.03),
     0 12px 36px -16px rgba(20, 18, 12, 0.18);
 }
+
 .lens-search-input {
   flex: 1;
   border: 0;
   background: transparent;
   outline: none;
   font-size: 16px;
+  line-height: 1.35;
   font-family: inherit;
   color: var(--foreground);
-  padding: 12px 0;
+  padding: 10px 0;
   resize: none;
 }
+
 .lens-search-input::placeholder {
   color: var(--muted-2);
 }
@@ -270,6 +294,7 @@
     border-color 0.15s,
     box-shadow 0.2s;
 }
+
 .lens-composer:focus-within {
   border-color: var(--line-2);
   box-shadow:
@@ -294,6 +319,7 @@
   gap: 6px;
   font-family: inherit;
 }
+
 .lens-chip:hover {
   background: var(--secondary);
   border-color: var(--line-2);
@@ -316,6 +342,7 @@
   font-family: inherit;
   flex-shrink: 0;
 }
+
 .lens-juris:hover {
   background: var(--border);
 }
@@ -335,9 +362,11 @@
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s;
 }
+
 .lens-audit-btn:hover {
   opacity: 0.92;
 }
+
 .lens-audit-btn:disabled {
   opacity: 0.35;
   cursor: default;
@@ -363,6 +392,7 @@
   border-radius: 18px;
   overflow: hidden;
 }
+
 .lens-panel-head {
   display: flex;
   justify-content: space-between;
@@ -372,6 +402,7 @@
   font-size: 13px;
   color: var(--muted-foreground);
 }
+
 .lens-panel-head .ttl {
   color: var(--ink-2);
   font-weight: 500;
@@ -387,12 +418,15 @@
   gap: 8px;
   margin-bottom: 8px;
 }
+
 .lens-crumbs a {
   color: var(--muted-foreground);
 }
+
 .lens-crumbs a:hover {
   color: var(--foreground);
 }
+
 .lens-crumbs .sep {
   opacity: 0.5;
 }
@@ -409,6 +443,7 @@
   color: var(--ink-2);
   white-space: nowrap;
 }
+
 .lens-meta-pill .dot {
   width: 6px;
   height: 6px;
@@ -416,6 +451,7 @@
   background: var(--muted-2);
   flex-shrink: 0;
 }
+
 .lens-meta-pill.live .dot {
   background: var(--accent-deep);
   animation: lens-pulse 1.8s infinite;
@@ -437,6 +473,7 @@
     background 0.15s,
     border-color 0.15s;
 }
+
 .lens-btn-ghost:hover {
   background: var(--card);
   border-color: var(--line-2);
@@ -453,6 +490,7 @@
   border-radius: 10px;
   transition: background 0.12s;
 }
+
 .lens-step .ic {
   width: 16px;
   height: 16px;
@@ -462,15 +500,18 @@
   flex-shrink: 0;
   font-size: 10px;
 }
+
 .lens-step.done .ic {
   background: var(--green);
   color: white;
 }
+
 .lens-step.run .ic {
   background: transparent;
   border: 1.5px solid var(--accent-deep);
   position: relative;
 }
+
 .lens-step.run .ic::after {
   content: "";
   position: absolute;
@@ -480,22 +521,27 @@
   border-top-color: var(--accent-deep);
   animation: lens-spin 0.9s linear infinite;
 }
+
 .lens-step.todo .ic {
   background: var(--secondary);
   border: 1px solid var(--border);
 }
+
 .lens-step.todo {
   color: var(--muted-foreground);
 }
+
 @keyframes lens-spin {
   to {
     transform: rotate(360deg);
   }
 }
+
 .lens-step .t {
   flex: 1;
   min-width: 0;
 }
+
 .lens-step .ms {
   color: var(--muted-2);
   font-family: var(--font-mono), ui-monospace, monospace;
@@ -514,18 +560,22 @@
   font-weight: 600;
   font-family: var(--font-mono), ui-monospace, monospace;
 }
+
 .lens-sev.crit {
   background: hsl(0 51% 47% / 0.1);
   color: var(--red);
 }
+
 .lens-sev.warn {
   background: hsl(39 71% 41% / 0.12);
   color: var(--amber);
 }
+
 .lens-sev.ok {
   background: hsl(145 46% 34% / 0.1);
   color: var(--green);
 }
+
 .lens-sev.info {
   background: hsl(36 14% 9% / 0.06);
   color: var(--muted-foreground);
@@ -543,6 +593,7 @@
   border-radius: 4px;
   color: var(--ink-2);
 }
+
 .lens-cite::before {
   content: "§";
   color: var(--accent-deep);
@@ -573,6 +624,7 @@
   line-height: 1.6;
   color: var(--ink-2);
 }
+
 .lens-diff .del {
   background: hsl(0 51% 47% / 0.1);
   color: var(--red);
@@ -580,6 +632,7 @@
   padding: 1px 3px;
   border-radius: 3px;
 }
+
 .lens-diff .ins {
   background: hsl(145 46% 34% / 0.12);
   color: var(--green);
@@ -593,12 +646,15 @@
   line-height: 1.55;
   color: var(--foreground);
 }
-.lens-prose > *:first-child {
+
+.lens-prose>*:first-child {
   margin-top: 0;
 }
-.lens-prose > *:last-child {
+
+.lens-prose>*:last-child {
   margin-bottom: 0;
 }
+
 .lens-prose blockquote {
   border-left: 2px solid var(--accent-deep);
   padding: 8px 0 8px 14px;
@@ -608,6 +664,7 @@
   font-style: italic;
   margin: 16px 0;
 }
+
 .lens-prose code {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 12.5px;
@@ -616,6 +673,7 @@
   border-radius: 4px;
   color: var(--ink-2);
 }
+
 .lens-prose pre {
   background: var(--background);
   border: 1px solid var(--border);
@@ -626,20 +684,24 @@
   font-size: 12px;
   line-height: 1.6;
 }
+
 .lens-prose pre code {
   background: transparent;
   padding: 0;
   border-radius: 0;
 }
+
 .lens-prose strong {
   font-weight: 500;
   color: var(--foreground);
 }
+
 .lens-prose em {
   font-family: var(--font-serif), serif;
   font-style: italic;
   font-weight: 400;
 }
+
 .lens-prose h1,
 .lens-prose h2,
 .lens-prose h3,
@@ -650,23 +712,28 @@
   color: var(--foreground);
   line-height: 1.15;
 }
+
 .lens-prose h1 {
   font-size: 28px;
   margin: 24px 0 12px;
 }
+
 .lens-prose h2 {
   font-size: 22px;
   margin: 20px 0 10px;
 }
+
 .lens-prose h3 {
   font-size: 18px;
   margin: 18px 0 8px;
 }
+
 .lens-prose a {
   color: var(--accent-deep);
   border-bottom: 1px solid hsl(343 56% 64% / 0.4);
   transition: border-color 0.15s;
 }
+
 .lens-prose a:hover {
   border-bottom-color: var(--accent-deep);
 }
@@ -675,20 +742,23 @@
 .lens-h1 {
   font-family: var(--font-serif), serif;
   font-weight: 300;
-  font-size: clamp(34px, 4.3vw, 46px);
+  font-size: clamp(28px, 4.3vw, 42px);
   line-height: 1.02;
   letter-spacing: -0.022em;
   margin: 0;
   color: var(--foreground);
 }
+
 @media (min-width: 768px) {
   .lens-h1 {
     white-space: nowrap;
   }
 }
+
 .lens-h1 .ital {
   font-style: italic;
 }
+
 .lens-title {
   font-family: var(--font-serif), serif;
   font-weight: 400;
@@ -703,18 +773,18 @@
   0% {
     background-position: 200% 0;
   }
+
   100% {
     background-position: -200% 0;
   }
 }
+
 .shimmer-text {
-  background: linear-gradient(
-    90deg,
-    var(--muted-foreground) 0%,
-    var(--foreground) 40%,
-    var(--foreground) 60%,
-    var(--muted-foreground) 100%
-  );
+  background: linear-gradient(90deg,
+      var(--muted-foreground) 0%,
+      var(--foreground) 40%,
+      var(--foreground) 60%,
+      var(--muted-foreground) 100%);
   background-size: 200% 100%;
   background-clip: text;
   -webkit-background-clip: text;
@@ -727,14 +797,17 @@
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
+
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
+
 *::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 999px;
 }
+
 *::-webkit-scrollbar-track {
   background: transparent;
 }

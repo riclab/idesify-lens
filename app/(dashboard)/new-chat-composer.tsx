@@ -23,6 +23,14 @@ const JURISDICTIONS = [
 ] as const;
 type JurisdictionId = (typeof JURISDICTIONS)[number]["id"];
 
+const MAX_PROMPT_HEIGHT = 160;
+
+function resizeTextarea(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight, MAX_PROMPT_HEIGHT)}px`;
+  el.style.overflow = el.scrollHeight > MAX_PROMPT_HEIGHT ? "auto" : "hidden";
+}
+
 const HEADING_PROMPTS = [
   ["Audita una", "política", "de privacidad"],
   ["Revisa el", "cumplimiento", "de la Ley 21.719"],
@@ -80,6 +88,10 @@ export function NewChatComposer() {
     );
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (inputRef.current) resizeTextarea(inputRef.current);
+  }, [prompt]);
 
   const startSession = useCallback(
     async (text?: string) => {
@@ -175,16 +187,13 @@ export function NewChatComposer() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Pega una URL de política o describe qué quieres auditar…"
+              placeholder="Pega una URL o describe qué quieres auditar…"
               rows={1}
               disabled={creating}
               className="lens-search-input"
               style={{ height: "auto", overflow: "hidden" }}
               onInput={(e) => {
-                const el = e.currentTarget;
-                el.style.height = "auto";
-                el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-                el.style.overflow = el.scrollHeight > 160 ? "auto" : "hidden";
+                resizeTextarea(e.currentTarget);
               }}
             />
 
