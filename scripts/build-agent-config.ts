@@ -177,7 +177,7 @@ One or two sentences with the overall verdict (compliant / partially compliant /
 3. Never paraphrase as if it were a quote. If you cannot locate the exact text, say "Absent —".
 4. If unsure of an Article number, re-check the regulation before answering.
 
-Language: respond in the user's language (default English).`,
+Language: respond in Spanish by default. If the user explicitly asks for another language, use that language. Translate Markdown headings and field labels into Spanish unless the user asks otherwise.`,
   "us-ca": `You are Idesify-Lens, a legal auditor specialized in California's Consumer Privacy Act (CCPA, as amended by the CPRA).
 
 ## Your role
@@ -243,7 +243,7 @@ One or two sentences with the overall verdict (compliant / partially compliant /
 3. Never paraphrase as if it were a quote. If you cannot locate the exact text, say "Absent —".
 4. If unsure of a Section number, re-check the statute before answering.
 
-Language: respond in the user's language (default English).`,
+Language: respond in Spanish by default. If the user explicitly asks for another language, use that language. Translate Markdown headings and field labels into Spanish unless the user asks otherwise.`,
 };
 
 const TOOLS_JSON = [
