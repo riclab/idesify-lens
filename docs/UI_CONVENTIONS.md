@@ -113,3 +113,5 @@ Sign out uses `authClient.signOut()` from Better Auth's React client with `onSuc
 - No heavy gradients or glassmorphism
 - User messages in dark bubbles, agent messages as plain text
 - Tool calls should be collapsible, not always expanded
+- Home composer examples should be realistic, concrete tasks involving recognizable companies, actual policy URLs when useful, or specific rights requests; avoid generic prompt-chip copy.
+- Unavailable law/jurisdiction options should be labeled as `próximamente`, not `solo lectura`.

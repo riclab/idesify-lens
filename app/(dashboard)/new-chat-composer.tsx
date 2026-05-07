@@ -17,11 +17,15 @@ import { setPendingMessage } from "@/lib/pending-message";
 import { apiFetch } from "@/lib/anonymous-session";
 
 const JURISDICTIONS = [
-  { id: "cl", flag: "🇨🇱", code: "CL", law: "Ley 21.719" },
-  { id: "eu", flag: "🇪🇺", code: "EU", law: "GDPR" },
-  { id: "us-ca", flag: "🇺🇸", code: "US-CA", law: "CCPA" },
+  { id: "cl", flag: "🇨🇱", code: "CL", law: "Ley 21.719", readonly: false },
+  { id: "eu", flag: "🇪🇺", code: "EU", law: "GDPR", readonly: true },
+  { id: "us-ca", flag: "🇺🇸", code: "US-CA", law: "CCPA", readonly: true },
+  { id: "br", flag: "🇧🇷", code: "BR", law: "LGPD", readonly: true },
 ] as const;
-type JurisdictionId = (typeof JURISDICTIONS)[number]["id"];
+type JurisdictionId = Exclude<
+  (typeof JURISDICTIONS)[number]["id"],
+  "br" | "eu" | "us-ca"
+>;
 
 const MAX_PROMPT_HEIGHT = 160;
 
@@ -41,33 +45,39 @@ const HEADING_PROMPTS = [
 
 const SUGGESTION_PILLS = [
   {
-    label: "Auditar",
-    prompt: "Audita esta política de privacidad según la Ley 21.719",
+    label: "Auditar Evil Corp",
+    prompt:
+      "Audita la política de privacidad de Evil Corp en https://evil-corp.nilify.com/ e identifica incumplimientos concretos, citando la norma aplicable y fragmentos de la política.",
     icon: <Search className="size-3.5" />,
   },
   {
-    label: "Resumir",
-    prompt: "Resume las prácticas de recolección de datos descritas en esta política",
+    label: "Auditar Mercado Libre",
+    prompt:
+      "Busca y audita la política de privacidad de Mercado Libre Chile. Revisa bases legales, transferencias internacionales, derechos ARCO y plazos de respuesta.",
     icon: <FileText className="size-3.5" />,
   },
   {
-    label: "Explicar cláusulas",
-    prompt: "Explica en lenguaje claro las cláusulas más llamativas de esta política",
+    label: "Auditar Uber",
+    prompt:
+      "Audita la política de privacidad de Uber para usuarios en Chile y señala riesgos sobre geolocalización, perfilamiento, retención y compartición con terceros.",
     icon: <Code className="size-3.5" />,
   },
   {
-    label: "Buscar DPO",
-    prompt: "Encuentra el contacto del delegado u oficial de protección de datos de esta empresa",
+    label: "Pedir acceso",
+    prompt:
+      "Redacta una solicitud de acceso a mis datos personales para Spotify, pidiendo categorías de datos, finalidades, destinatarios, origen y plazo de conservación.",
     icon: <BookOpen className="size-3.5" />,
   },
   {
-    label: "Redactar solicitud",
-    prompt: "Redacta una solicitud de eliminación de datos citando la ley aplicable",
+    label: "Eliminar datos",
+    prompt:
+      "Redacta una solicitud para eliminar mi cuenta y mis datos personales de Instagram, incluyendo revocación de consentimiento y oposición a marketing.",
     icon: <Sparkles className="size-3.5" />,
   },
   {
-    label: "Revisar riesgos",
-    prompt: "Lista las prácticas de intercambio de datos más riesgosas de esta política",
+    label: "Opt-out CCPA",
+    prompt:
+      "Redacta una solicitud CCPA para The New York Times: no vender ni compartir mis datos, limitar datos sensibles y confirmar el cumplimiento por escrito.",
     icon: <Zap className="size-3.5" />,
   },
 ];
@@ -213,16 +223,22 @@ export function NewChatComposer() {
               <span className="sr-only">Jurisdicción</span>
               <select
                 value={jurisdiction}
-                onChange={(e) =>
-                  setJurisdiction(e.target.value as JurisdictionId)
-                }
+                onChange={(e) => {
+                  const selected = JURISDICTIONS.find(
+                    (j) => j.id === e.target.value,
+                  );
+                  if (selected && !selected.readonly) {
+                    setJurisdiction(selected.id);
+                  }
+                }}
                 disabled={creating}
                 className="absolute inset-0 cursor-pointer opacity-0"
                 style={{ width: "100%" }}
               >
                 {JURISDICTIONS.map((j) => (
-                  <option key={j.id} value={j.id}>
+                  <option key={j.id} value={j.id} disabled={j.readonly}>
                     {j.flag} {j.code} — {j.law}
+                    {j.readonly ? " — próximamente" : ""}
                   </option>
                 ))}
               </select>
