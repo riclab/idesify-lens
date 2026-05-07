@@ -793,6 +793,164 @@
   animation: shimmer 2.5s ease-in-out infinite;
 }
 
+/* ---------- Printable audit report ---------- */
+.lens-print-report {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: #111 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .lens-print-report,
+  .lens-print-report * {
+    visibility: visible !important;
+  }
+
+  .lens-print-report {
+    display: block !important;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    background: white;
+    color: #111;
+    font-family: var(--font-sans), system-ui, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.45;
+  }
+
+  .lens-print-header {
+    border-bottom: 1px solid #d7d7d7;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+  }
+
+  .lens-print-kicker,
+  .lens-print-label,
+  .lens-print-category,
+  .lens-print-citation,
+  .lens-print-url,
+  .lens-print-meta {
+    color: #555;
+  }
+
+  .lens-print-kicker,
+  .lens-print-label,
+  .lens-print-category {
+    font-size: 8.5pt;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .lens-print-header h1 {
+    font-family: var(--font-serif), Georgia, serif;
+    font-size: 28pt;
+    font-weight: 400;
+    line-height: 1.05;
+    margin: 4px 0 10px;
+  }
+
+  .lens-print-meta,
+  .lens-print-counts,
+  .lens-print-pipeline li,
+  .lens-print-finding-head {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .lens-print-summary {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 24px;
+    border-bottom: 1px solid #d7d7d7;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+  }
+
+  .lens-print-score {
+    font-family: var(--font-serif), Georgia, serif;
+    font-size: 36pt;
+    line-height: 1;
+    margin: 4px 0;
+  }
+
+  .lens-print-score span {
+    color: #777;
+    font-size: 15pt;
+  }
+
+  .lens-print-counts span {
+    border: 1px solid #d7d7d7;
+    border-radius: 999px;
+    padding: 3px 8px;
+  }
+
+  .lens-print-section {
+    margin-top: 18px;
+  }
+
+  .lens-print-section h2 {
+    font-family: var(--font-serif), Georgia, serif;
+    font-size: 18pt;
+    font-weight: 400;
+    margin: 0 0 10px;
+  }
+
+  .lens-print-pipeline {
+    padding-left: 18px;
+  }
+
+  .lens-print-pipeline li {
+    justify-content: space-between;
+    border-bottom: 1px solid #eee;
+    padding: 4px 0;
+  }
+
+  .lens-print-finding {
+    break-inside: avoid;
+    border-top: 1px solid #d7d7d7;
+    padding-top: 14px;
+    margin-top: 14px;
+  }
+
+  .lens-print-finding-head {
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .lens-print-finding h3 {
+    font-size: 13.5pt;
+    margin: 0;
+  }
+
+  .lens-print-finding h4 {
+    font-size: 10pt;
+    margin: 10px 0 4px;
+  }
+
+  .lens-print-finding blockquote {
+    border-left: 2px solid #999;
+    color: #333;
+    font-family: var(--font-serif), Georgia, serif;
+    font-size: 12pt;
+    font-style: italic;
+    margin: 10px 0;
+    padding: 6px 0 6px 10px;
+  }
+}
+
 /* ---------- Scrollbar polish ---------- */
 * {
   scrollbar-width: thin;

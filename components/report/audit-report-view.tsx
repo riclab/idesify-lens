@@ -93,6 +93,16 @@ function reportVersion(createdAt: string): string {
   return `v.${yyyy}.${mm}.${dd}`;
 }
 
+function formatReportDate(createdAt: string): string {
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return "Fecha no disponible";
+  return d.toLocaleDateString("es-CL", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 const REGENERATE_PROMPT =
   "Por favor, llama AHORA a la herramienta `submit_findings` con el reporte estructurado de la auditoría que acabas de producir. Es obligatorio para que aparezca en la pestaña Reporte. Incluye TODOS los hallazgos (críticos, warnings, info y passing). No respondas con texto adicional, sólo invoca la herramienta.";
 
@@ -217,8 +227,13 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
     }
   }
 
+  function handleExportPdf() {
+    window.print();
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+      {data && <PrintableAuditReport data={data} counts={counts} />}
       <div className="px-6 pt-5 pb-4 md:px-10">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -307,8 +322,9 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
               type="button"
               className="lens-audit-btn cursor-pointer"
               style={{ padding: "10px 16px", fontSize: 13.5 }}
-              disabled
-              title="Próximamente"
+              onClick={handleExportPdf}
+              disabled={!data}
+              title="Exportar como PDF"
             >
               <Download className="size-3.5" /> Exportar PDF
             </button>
@@ -420,6 +436,120 @@ export function AuditReportView({ sessionId }: { sessionId: string }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function PrintableAuditReport({
+  data,
+  counts,
+}: {
+  data: ReportPayload;
+  counts: Record<FindingSeverity, number>;
+}) {
+  const { report } = data;
+
+  return (
+    <section
+      className="lens-print-report"
+      style={{ display: "none" }}
+      aria-hidden="true"
+    >
+      <header className="lens-print-header">
+        <p className="lens-print-kicker">Idesify - Lens</p>
+        <h1>{report.policyLabel}</h1>
+        <div className="lens-print-meta">
+          <span>
+            {JURISDICTION_LABEL[report.jurisdiction] ?? report.jurisdiction}
+          </span>
+          <span>{reportVersion(report.createdAt)}</span>
+          <span>{formatReportDate(report.createdAt)}</span>
+        </div>
+        {report.policyUrl && (
+          <p className="lens-print-url">URL auditada: {report.policyUrl}</p>
+        )}
+      </header>
+
+      <section className="lens-print-summary">
+        <div>
+          <p className="lens-print-label">Puntaje de cumplimiento</p>
+          <p className="lens-print-score">
+            {report.complianceScore}<span>/100</span>
+          </p>
+          <p>{riskLabel(report.riskLevel)}</p>
+        </div>
+        <div>
+          <p className="lens-print-label">Hallazgos</p>
+          <div className="lens-print-counts">
+            {SEVERITY_ORDER.map((severity) => (
+              <span key={severity}>
+                {SEV_LABEL[severity]}: {counts[severity]}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {report.pipeline.length > 0 && (
+        <section className="lens-print-section">
+          <h2>Flujo de auditoría</h2>
+          <ol className="lens-print-pipeline">
+            {report.pipeline.map((step) => (
+              <li key={`${step.label}-${step.durationMs}`}>
+                <span>{step.label}</span>
+                <span>{formatDuration(step.durationMs)}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      <section className="lens-print-section">
+        <h2>Hallazgos</h2>
+        {report.findings.map((finding) => (
+          <article key={finding.id} className="lens-print-finding">
+            <div className="lens-print-finding-head">
+              <h3>
+                {finding.id} · {finding.title}
+              </h3>
+              <span>{SEV_LABEL[finding.severity]}</span>
+            </div>
+            <p className="lens-print-category">{finding.category}</p>
+            <p>{finding.description}</p>
+            {(finding.article_ref || finding.law_label) && (
+              <p className="lens-print-citation">
+                {[finding.article_ref, finding.law_label]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+            {finding.article_quote && (
+              <blockquote>{finding.article_quote}</blockquote>
+            )}
+            {finding.why_it_matters && (
+              <div>
+                <h4>Por qué importa</h4>
+                <p>{finding.why_it_matters}</p>
+              </div>
+            )}
+            {finding.suggested_rewrite && (
+              <div>
+                <h4>Redacción sugerida</h4>
+                {finding.suggested_rewrite.before && (
+                  <p>
+                    <strong>Antes:</strong> {finding.suggested_rewrite.before}
+                  </p>
+                )}
+                {finding.suggested_rewrite.after && (
+                  <p>
+                    <strong>Después:</strong> {finding.suggested_rewrite.after}
+                  </p>
+                )}
+              </div>
+            )}
+          </article>
+        ))}
+      </section>
+    </section>
   );
 }
 
@@ -767,8 +897,11 @@ function AuditPipeline({ steps }: { steps: PipelineStep[] }) {
         </div>
       </div>
       <div className="space-y-1 px-4 py-4">
-        {steps.map((step, i) => (
-          <div key={i} className="lens-step done">
+        {steps.map((step) => (
+          <div
+            key={`${step.toolName}-${step.label}-${step.durationMs}`}
+            className="lens-step done"
+          >
             <span className="ic">
               <Check className="size-2.5" strokeWidth={3} />
             </span>
